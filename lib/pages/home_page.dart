@@ -1,0 +1,219 @@
+import 'package:flutter/material.dart';
+import 'stok_page.dart';
+import 'riwayat_page.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int _selectedIndex = 0;
+  late PageController _pageController;
+
+  List<Map<String, dynamic>> products = [
+    {'name': 'Tepung Terigu', 'size': '1kg', 'stock': 20, 'price': 12000},
+    {'name': 'Gula Pasir', 'size': '1kg', 'stock': 15, 'price': 14000},
+    {'name': 'Mentega', 'size': '200gr', 'stock': 10, 'price': 8000},
+    {'name': 'Coklat Bubuk', 'size': '100gr', 'stock': 8, 'price': 10000},
+  ];
+  List<Map<String, dynamic>> cart = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _selectedIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onNavTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  void _addToCart(Map<String, dynamic> product) {
+    setState(() {
+      cart.add(product);
+    });
+  }
+
+  Widget _buildProductList(BuildContext context) {
+    final isWideScreen = MediaQuery.of(context).size.width > 600;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: isWideScreen
+          ? GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 3.5,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                return _buildProductCard(product);
+              },
+            )
+          : ListView.separated(
+              itemCount: products.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final product = products[index];
+                return _buildProductCard(product);
+              },
+            ),
+    );
+  }
+
+  Widget _buildProductCard(Map<String, dynamic> product) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product['name'],
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Ukuran: ${product['size']} • Stok: ${product['stock']}',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Rp${product['price']}',
+                    style: const TextStyle(
+                      color: Color(0xFF00563B),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => _addToCart(product),
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text("Tambah"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00563B),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCartIcon() {
+    return IconButton(
+      icon: const Icon(Icons.shopping_cart, color: Colors.white),
+      onPressed: () {
+        Navigator.pushNamed(context, '/cart', arguments: cart);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Toko Azka', style: TextStyle(color: Colors.white)),
+        actions: [
+          _buildCartIcon(),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/',
+                  (route) => false,
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                enabled: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Dayat Saputra',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Divider(),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(value: 'logout', child: Text('Logout')),
+            ],
+            icon: const Icon(Icons.person, color: Colors.white),
+          ),
+        ],
+      ),
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        children: [
+          _buildProductList(context),
+          const StokPage(),
+          const RiwayatPage(),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onNavTapped,
+        selectedItemColor: const Color(0xFF00563B),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Utama'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory),
+            label: 'Stok Masuk',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
+        ],
+      ),
+    );
+  }
+}
