@@ -4,6 +4,7 @@ import 'pages/home_page.dart';
 import 'pages/cart_page.dart';
 import 'pages/stok_page.dart';
 import 'pages/riwayat_page.dart';
+import 'pages/pending_page.dart'; // Import PendingPage
 
 void main() {
   runApp(const MyApp());
@@ -31,10 +32,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
-          titleTextStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -69,6 +67,7 @@ class MyApp extends StatelessWidget {
         '/cart': (context) => const CartPage(),
         '/stok': (context) => const StokPage(),
         '/riwayat': (context) => const RiwayatPage(),
+        '/pending': (context) => const PendingPage(), // Add this line
       },
     );
   }

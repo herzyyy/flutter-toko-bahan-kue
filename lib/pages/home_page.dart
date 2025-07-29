@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'stok_page.dart';
 import 'riwayat_page.dart';
+import 'pending_page.dart'; // Tambahkan import
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -88,41 +89,64 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildProductCard(Map<String, dynamic> product) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    product['name'],
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        product['name'],
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF00563B),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00563B).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Stok: ${product['stock']}',
+                          style: const TextStyle(
+                            color: Color(0xFF00563B),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
-                    'Ukuran: ${product['size']} • Stok: ${product['stock']}',
+                    'Ukuran: ${product['size']}',
                     style: TextStyle(color: Colors.grey[700]),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     'Rp${product['price']}',
                     style: const TextStyle(
                       color: Color(0xFF00563B),
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             ElevatedButton.icon(
               onPressed: () => _addToCart(product),
               icon: const Icon(Icons.add_shopping_cart),
@@ -131,12 +155,13 @@ class _HomePageState extends State<HomePage> {
                 backgroundColor: const Color(0xFF00563B),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+                  horizontal: 14,
+                  vertical: 12,
                 ),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -158,7 +183,23 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Toko Azka', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF00563B),
+        elevation: 2,
+        title: Row(
+          children: [
+            const Icon(Icons.store, color: Colors.white, size: 24),
+            const SizedBox(width: 10),
+            const Text(
+              'Toko Azka',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
         actions: [
           _buildCartIcon(),
           PopupMenuButton<String>(
@@ -191,12 +232,14 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+      backgroundColor: const Color(0xFFE8F5E9), // hijau muda
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
         children: [
           _buildProductList(context),
           const StokPage(),
+          const PendingPage(),
           const RiwayatPage(),
         ],
       ),
@@ -210,6 +253,10 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.inventory),
             label: 'Stok Masuk',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.pending_actions),
+            label: 'Pending',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
         ],

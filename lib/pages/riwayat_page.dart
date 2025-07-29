@@ -9,7 +9,8 @@ class RiwayatPage extends StatefulWidget {
 
 class _RiwayatPageState extends State<RiwayatPage> {
   static final List<Map<String, dynamic>> _riwayatTransaksi = [];
-  bool _isReversed = false;
+  static final List<Map<String, dynamic>> _riwayatBarangMasuk = [];
+  int _selectedTab = 0; // 0: transaksi, 1: barang masuk
 
   @override
   void didChangeDependencies() {
@@ -17,12 +18,21 @@ class _RiwayatPageState extends State<RiwayatPage> {
     final transaksi =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-    if (transaksi != null && transaksi.containsKey('tanggal')) {
-      final isDuplicate = _riwayatTransaksi.any(
-        (item) => item['tanggal'] == transaksi['tanggal'],
-      );
-      if (!isDuplicate) {
-        _riwayatTransaksi.insert(0, transaksi);
+    if (transaksi != null && transaksi.containsKey('jenis')) {
+      if (transaksi['jenis'] == 'masuk') {
+        final isDuplicate = _riwayatBarangMasuk.any(
+          (item) => item['tanggal'] == transaksi['tanggal'],
+        );
+        if (!isDuplicate) {
+          _riwayatBarangMasuk.insert(0, transaksi);
+        }
+      } else {
+        final isDuplicate = _riwayatTransaksi.any(
+          (item) => item['tanggal'] == transaksi['tanggal'],
+        );
+        if (!isDuplicate) {
+          _riwayatTransaksi.insert(0, transaksi);
+        }
       }
     }
   }
@@ -33,156 +43,427 @@ class _RiwayatPageState extends State<RiwayatPage> {
     const Color textMain = Color(0xFF222222);
     const Color textSub = Color(0xFF4F4F4F);
 
-    final transaksiList = _isReversed
-        ? _riwayatTransaksi.reversed.toList()
-        : _riwayatTransaksi;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Riwayat Transaksi',
-          style: TextStyle(color: Colors.white),
-        ),
         backgroundColor: highlight,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.swap_vert, color: Colors.white),
-            tooltip: 'Urutkan',
-            onPressed: () {
-              setState(() {
-                _isReversed = !_isReversed;
-              });
-            },
+        elevation: 2,
+        title: Row(
+          children: [
+            const Icon(Icons.history, color: Colors.white, size: 24),
+            const SizedBox(width: 10),
+            const Text(
+              'Riwayat',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: false,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(54),
+          child: Container(
+            color: highlight,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildTabButton(
+                  icon: Icons.receipt_long,
+                  label: 'Transaksi',
+                  selected: _selectedTab == 0,
+                  onTap: () => setState(() => _selectedTab = 0),
+                ),
+                const SizedBox(width: 24),
+                _buildTabButton(
+                  icon: Icons.inventory_2,
+                  label: 'Barang Masuk',
+                  selected: _selectedTab == 1,
+                  onTap: () => setState(() => _selectedTab = 1),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: transaksiList.isEmpty
-            ? Center(
-                child: Text(
-                  'Belum ada transaksi',
-                  style: TextStyle(fontSize: 16, color: textMain),
-                ),
-              )
-            : ListView.builder(
-                itemCount: transaksiList.length,
-                itemBuilder: (context, index) {
-                  final transaksi = transaksiList[index];
-                  final List produk = transaksi['produk'] ?? [];
+        child: _selectedTab == 0
+            ? (_riwayatTransaksi.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Belum ada transaksi',
+                        style: TextStyle(fontSize: 16, color: textMain),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _riwayatTransaksi.length,
+                      itemBuilder: (context, index) {
+                        final transaksi = _riwayatTransaksi[index];
+                        final List produk = transaksi['produk'] ?? [];
 
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 3,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          /// Nama dan Tanggal
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                transaksi['namaPelanggan']
-                                            ?.toString()
-                                            .isNotEmpty ==
-                                        true
-                                    ? transaksi['namaPelanggan']
-                                    : 'Tanpa Nama',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: highlight,
-                                ),
-                              ),
-                              Text(
-                                transaksi['tanggal']?.toString().substring(
-                                      0,
-                                      16,
-                                    ) ??
-                                    '-',
-                                style: const TextStyle(
-                                  color: textSub,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+                        return Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          const SizedBox(height: 12),
+                          elevation: 4,
+                          margin: const EdgeInsets.only(bottom: 20),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header: Nama & Tanggal
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.person,
+                                          color: highlight,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          transaksi['namaPelanggan']
+                                                      ?.toString()
+                                                      .isNotEmpty ==
+                                                  true
+                                              ? transaksi['namaPelanggan']
+                                              : 'Tanpa Nama',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: highlight,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.calendar_today,
+                                          color: textSub,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          transaksi['tanggal']
+                                                  ?.toString()
+                                                  .substring(0, 16) ??
+                                              '-',
+                                          style: const TextStyle(
+                                            color: textSub,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: highlight.withOpacity(0.07),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                    horizontal: 12,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Daftar Produk',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: highlight,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ...produk.map<Widget>((item) {
+                                        final name = item['name'] ?? '';
+                                        final size = item['size'] ?? '';
+                                        final jumlah = item['jumlah'] ?? 0;
+                                        final price = item['price'] ?? 0;
+                                        final total = price * jumlah;
 
-                          /// Daftar Produk
-                          const Text(
-                            'Daftar Produk:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: highlight,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          ...produk.map<Widget>((item) {
-                            final name = item['name'] ?? '';
-                            final size = item['size'] ?? '';
-                            final jumlah = item['jumlah'] ?? 0;
-                            final price = item['price'] ?? 0;
-                            final total = price * jumlah;
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '$name ($size) x$jumlah',
-                                      style: const TextStyle(color: textSub),
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 2,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                '$name ($size) x$jumlah',
+                                                style: const TextStyle(
+                                                  color: textSub,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Rp$total',
+                                                style: const TextStyle(
+                                                  color: highlight,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Divider(
+                                  height: 24,
+                                  color: highlight.withOpacity(0.5),
+                                ),
+                                // Info pembayaran
+                                buildInfoRow(
+                                  'Total:',
+                                  transaksi['total'],
+                                  highlight,
+                                  isBold: true,
+                                ),
+                                buildInfoRow(
+                                  'Pengurangan:',
+                                  transaksi['diskon'],
+                                  highlight,
+                                  isMinus: true,
+                                ),
+                                buildInfoRow(
+                                  'Total Akhir:',
+                                  transaksi['totalAkhir'],
+                                  highlight,
+                                  isBold: true,
+                                  isHighlight: true,
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.payment,
+                                      color: highlight,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      transaksi['jenisPembayaran'] == 'Tunai'
+                                          ? 'Tunai'
+                                          : 'Non Tunai',
+                                      style: const TextStyle(
+                                        color: highlight,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (transaksi['uangCustomer'] != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.attach_money,
+                                          color: highlight,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Uang Customer: Rp${(transaksi['uangCustomer'] as num).toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            color: highlight,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  Text(
-                                    'Rp$total',
-                                    style: const TextStyle(color: textMain),
+                                if (transaksi['kembalian'] != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.money_off,
+                                          color: highlight,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Kembalian: Rp${(transaksi['kembalian'] as num).toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            color: highlight,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ],
-                              ),
-                            );
-                          }),
-
-                          const Divider(height: 24, color: highlight),
-
-                          /// Total
-                          buildInfoRow(
-                            'Total:',
-                            transaksi['total'],
-                            highlight,
-                            isBold: true,
+                              ],
+                            ),
                           ),
-
-                          /// Diskon
-                          buildInfoRow(
-                            'Pengurangan:',
-                            transaksi['diskon'],
-                            highlight,
-                            isMinus: true,
-                          ),
-
-                          /// Total Akhir
-                          buildInfoRow(
-                            'Total Akhir:',
-                            transaksi['totalAkhir'],
-                            highlight,
-                            isBold: true,
-                            isHighlight: true,
-                          ),
-                        ],
+                        );
+                      },
+                    ))
+            : (_riwayatBarangMasuk.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Belum ada barang masuk',
+                        style: TextStyle(fontSize: 16, color: textMain),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    )
+                  : ListView.builder(
+                      itemCount: _riwayatBarangMasuk.length,
+                      itemBuilder: (context, index) {
+                        final riwayat = _riwayatBarangMasuk[index];
+                        final produkList =
+                            riwayat['produk'] as List<dynamic>? ?? [];
+                        return Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 4,
+                          margin: const EdgeInsets.only(bottom: 20),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.local_shipping,
+                                      color: highlight,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Distributor: ${riwayat['distributor'] ?? '-'}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: highlight,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_today,
+                                      color: textSub,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      riwayat['tanggal'] ?? '-',
+                                      style: const TextStyle(
+                                        color: textSub,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: highlight.withOpacity(0.07),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                    horizontal: 12,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Produk Masuk',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: highlight,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ...produkList.map(
+                                        (item) => Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 2,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                '${item['nama']} (${item['ukuran']}) x${item['stok']}',
+                                                style: const TextStyle(
+                                                  color: textSub,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Rp${item['harga'] ?? 0}',
+                                                style: const TextStyle(
+                                                  color: highlight,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      // Tambahkan total harga di bawah daftar produk
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Total Harga',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF00563B),
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Rp${produkList.fold<int>(0, (sum, item) => sum + ((item['harga'] ?? 0) as int) * ((item['stok'] ?? 0) as int))}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF00563B),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    )),
       ),
     );
   }
@@ -195,9 +476,14 @@ class _RiwayatPageState extends State<RiwayatPage> {
     bool isMinus = false,
     bool isHighlight = false,
   }) {
-    final String text = value is num
-        ? '${isMinus ? '- ' : ''}Rp${value.toStringAsFixed(0)}'
-        : 'Rp0';
+    String text;
+    if (value is num) {
+      text = '${isMinus ? '- ' : ''}Rp${value.toStringAsFixed(0)}';
+    } else if (value is String) {
+      text = value;
+    } else {
+      text = value?.toString() ?? '';
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
@@ -219,6 +505,39 @@ class _RiwayatPageState extends State<RiwayatPage> {
               color: color,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabButton({
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: selected ? Colors.white : Colors.white70, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : Colors.white70,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 12,
+            ),
+          ),
+          if (selected)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              height: 2,
+              width: 24,
+              color: Colors.white,
+            ),
         ],
       ),
     );

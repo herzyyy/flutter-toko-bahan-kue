@@ -14,6 +14,11 @@ class _CartPageState extends State<CartPage> {
   final TextEditingController _discountController = TextEditingController();
   final TextEditingController _namaPelangganController =
       TextEditingController();
+  String paymentType = 'Tunai';
+  final TextEditingController _uangCustomerController = TextEditingController();
+  double uangCustomer = 0;
+  double kembalian = 0;
+  String paymentStatus = 'complete'; // default
 
   @override
   void didChangeDependencies() {
@@ -42,37 +47,60 @@ class _CartPageState extends State<CartPage> {
     });
   }
 
+  void _updateUangCustomer(String value) {
+    setState(() {
+      uangCustomer = double.tryParse(value) ?? 0;
+      kembalian = (uangCustomer - finalPrice).clamp(0, double.infinity);
+    });
+  }
+
   void _onSelesai() {
     if (cart.isEmpty) return;
     final transaksi = {
+      'jenis': 'terjual',
       'namaPelanggan': _namaPelangganController.text,
       'produk': [
         for (int i = 0; i < cart.length; i++)
-          {...cart[i], 'jumlah': quantities[i]},
+          {
+            'name': cart[i]['name'] ?? cart[i]['nama'],
+            'size': cart[i]['size'] ?? cart[i]['ukuran'],
+            'jumlah': quantities[i],
+            'price': cart[i]['price'],
+          },
       ],
       'total': totalPrice,
       'diskon': discount,
       'totalAkhir': finalPrice,
-      'tanggal': DateTime.now().toIso8601String(),
+      'jenisPembayaran': paymentType,
+      'uangCustomer': uangCustomer,
+      'kembalian': kembalian,
+      'tanggal': DateTime.now().toString().substring(0, 16),
+      'status': paymentStatus, // Tambahkan status
     };
 
     Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     Future.delayed(const Duration(milliseconds: 300), () {
-      Navigator.pushNamed(context, '/riwayat', arguments: transaksi);
+      if (paymentStatus == 'complete') {
+        Navigator.pushNamed(context, '/riwayat', arguments: transaksi);
+      } else {
+        Navigator.pushNamed(context, '/pending', arguments: transaksi);
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    const Color primaryColor = Color(0xFF00563B);
+    const Color cardBg = Color(0xFFF6F6F6);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Keranjang',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Color(0xFF00563B), // opsional sesuai tema
+        title: const Text('Keranjang', style: TextStyle(color: Colors.white)),
+        backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 2,
       ),
+      backgroundColor: const Color(0xFFE8F5E9),
       body: LayoutBuilder(
         builder: (context, constraints) {
           double horizontalPadding = constraints.maxWidth > 600 ? 64 : 16;
@@ -89,12 +117,26 @@ class _CartPageState extends State<CartPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Nama Pelanggan
+                        const Text(
+                          'Nama Pelanggan',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
                         TextField(
                           controller: _namaPelangganController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nama Pelanggan',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person_outline),
+                          decoration: InputDecoration(
+                            hintText: 'Masukkan nama pelanggan',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: const Icon(Icons.person_outline),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -109,53 +151,76 @@ class _CartPageState extends State<CartPage> {
                           itemBuilder: (context, index) {
                             final item = cart[index];
                             return Card(
+                              color: cardBg,
                               elevation: 2,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                  horizontal: 16,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                  horizontal: 8,
                                 ),
-                                title: Text(
-                                  item['name'],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    item['name'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
-                                ),
-                                subtitle: Text(
-                                  'Ukuran: ${item['size']} | Harga: Rp${item['price']}',
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                          Icons.remove_circle_outline),
-                                      onPressed: () {
-                                        setState(() {
-                                          if (quantities[index] > 1) {
-                                            quantities[index]--;
-                                          }
-                                        });
-                                      },
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Ukuran: ${item['size']} | Harga: Rp${item['price']}',
+                                      style: const TextStyle(fontSize: 13),
                                     ),
-                                    Text(
-                                      '${quantities[index]}',
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                          Icons.add_circle_outline),
-                                      onPressed: () {
-                                        setState(() {
-                                          quantities[index]++;
-                                        });
-                                      },
-                                    ),
-                                  ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            if (quantities[index] > 1) {
+                                              quantities[index]--;
+                                            }
+                                          });
+                                        },
+                                      ),
+                                      Text(
+                                        '${quantities[index]}',
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.add_circle_outline,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            quantities[index]++;
+                                          });
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        tooltip: 'Hapus produk',
+                                        onPressed: () {
+                                          setState(() {
+                                            cart.removeAt(index);
+                                            quantities.removeAt(index);
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
@@ -165,13 +230,27 @@ class _CartPageState extends State<CartPage> {
                         const SizedBox(height: 24),
 
                         // Diskon input
+                        const Text(
+                          'Diskon / Potongan Harga',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
                         TextField(
                           controller: _discountController,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Diskon / Potongan Harga (Rp)',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.discount_outlined),
+                          decoration: InputDecoration(
+                            hintText: '0',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: const Icon(Icons.discount_outlined),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                           ),
                           onChanged: _updateDiscount,
                         ),
@@ -180,6 +259,7 @@ class _CartPageState extends State<CartPage> {
 
                         // Rangkuman Total Harga
                         Card(
+                          color: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -188,9 +268,13 @@ class _CartPageState extends State<CartPage> {
                             child: Column(
                               children: [
                                 _buildSummaryRow(
-                                    'Total', 'Rp${totalPrice.toStringAsFixed(0)}'),
-                                _buildSummaryRow('Potongan',
-                                    '- Rp${discount.toStringAsFixed(0)}'),
+                                  'Total',
+                                  'Rp${totalPrice.toStringAsFixed(0)}',
+                                ),
+                                _buildSummaryRow(
+                                  'Potongan',
+                                  '- Rp${discount.toStringAsFixed(0)}',
+                                ),
                                 const Divider(),
                                 _buildSummaryRow(
                                   'Total Akhir',
@@ -204,6 +288,120 @@ class _CartPageState extends State<CartPage> {
 
                         const SizedBox(height: 24),
 
+                        // Jenis Pembayaran
+                        const Text(
+                          'Jenis Pembayaran',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Radio<String>(
+                              value: 'Tunai',
+                              groupValue: paymentType,
+                              onChanged: (val) {
+                                setState(() {
+                                  paymentType = val!;
+                                });
+                              },
+                              activeColor: primaryColor,
+                            ),
+                            const Text('Tunai'),
+                            Radio<String>(
+                              value: 'Non Tunai',
+                              groupValue: paymentType,
+                              onChanged: (val) {
+                                setState(() {
+                                  paymentType = val!;
+                                });
+                              },
+                              activeColor: primaryColor,
+                            ),
+                            const Text('Non Tunai'),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Input uang customer
+                        const Text(
+                          'Jumlah Uang dari Customer',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _uangCustomerController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            hintText: '0',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: const Icon(Icons.payments_outlined),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                          onChanged: _updateUangCustomer,
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Tampilkan kembalian
+                        if (paymentType == 'Tunai')
+                          _buildSummaryRow(
+                            'Kembalian',
+                            'Rp${kembalian.toStringAsFixed(0)}',
+                            highlight: true,
+                          ),
+
+                        const SizedBox(height: 24),
+
+                        // Status Pembayaran
+                        const Text(
+                          'Status Pembayaran',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Radio<String>(
+                              value: 'complete',
+                              groupValue: paymentStatus,
+                              onChanged: (val) {
+                                setState(() {
+                                  paymentStatus = val!;
+                                });
+                              },
+                              activeColor: primaryColor,
+                            ),
+                            const Text('Complete'),
+                            Radio<String>(
+                              value: 'pending',
+                              groupValue: paymentStatus,
+                              onChanged: (val) {
+                                setState(() {
+                                  paymentStatus = val!;
+                                });
+                              },
+                              activeColor: primaryColor,
+                            ),
+                            const Text('Pending'),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+
                         // Tombol Selesai
                         SizedBox(
                           width: double.infinity,
@@ -212,10 +410,15 @@ class _CartPageState extends State<CartPage> {
                             icon: const Icon(Icons.check_circle_outline),
                             label: const Text('Selesaikan Transaksi'),
                             style: ElevatedButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -229,28 +432,31 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value,
-      {bool highlight = false}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value, {
+    bool highlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(
-                fontSize: highlight ? 18 : 14,
-                fontWeight:
-                    highlight ? FontWeight.bold : FontWeight.normal,
-              )),
-          Text(value,
-              style: TextStyle(
-                fontSize: highlight ? 18 : 14,
-                color: highlight
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
-                fontWeight:
-                    highlight ? FontWeight.bold : FontWeight.normal,
-              )),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: highlight ? 18 : 14,
+              fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: highlight ? 18 : 14,
+              color: highlight ? Theme.of(context).colorScheme.primary : null,
+              fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );
