@@ -100,7 +100,7 @@ class _CartPageState extends State<CartPage> {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 2,
       ),
-      backgroundColor: const Color(0xFFE8F5E9),
+      backgroundColor: Colors.white, // <- background halaman putih
       body: LayoutBuilder(
         builder: (context, constraints) {
           double horizontalPadding = constraints.maxWidth > 600 ? 64 : 16;
@@ -151,7 +151,9 @@ class _CartPageState extends State<CartPage> {
                           itemBuilder: (context, index) {
                             final item = cart[index];
                             return Card(
-                              color: cardBg,
+                              color: const Color(
+                                0xFFE8F5E9,
+                              ), // <- card hijau muda
                               elevation: 2,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),

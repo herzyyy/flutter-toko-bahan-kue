@@ -90,7 +90,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildProductCard(Map<String, dynamic> product) {
     return Card(
       elevation: 4,
-      color: Colors.white,
+      color: const Color(0xFFE8F5E9), // Ubah warna card jadi hijau muda
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
@@ -114,7 +114,9 @@ class _HomePageState extends State<HomePage> {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF00563B).withOpacity(0.08),
                           borderRadius: BorderRadius.circular(8),
@@ -232,7 +234,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      backgroundColor: const Color(0xFFE8F5E9), // hijau muda
+      backgroundColor: Colors.white, // Ubah background halaman jadi putih
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,

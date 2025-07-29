@@ -120,7 +120,7 @@ class _StokPageState extends State<StokPage> {
                   itemBuilder: (context, i) {
                     final produk = produkStokList[i];
                     return Card(
-                      color: cardBg,
+                      color: const Color(0xFFE8F5E9), // hijau muda
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
