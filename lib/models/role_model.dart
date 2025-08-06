@@ -1,31 +1,22 @@
-class Category {
+class Role {
   final int id;
   final String name;
   final int createdAt;
   final int updatedAt;
 
-  Category({
+  Role({
     required this.id,
     required this.name,
     required this.createdAt,
     required this.updatedAt,
   });
 
-  factory Category.fromJson(Map<String, dynamic> json) {
-    return Category(
+  factory Role.fromJson(Map<String, dynamic> json) {
+    return Role(
       id: json['id'],
       name: json['name'],
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'created_at': createdAt,
-      'updated_at': updatedAt,
-    };
   }
 }

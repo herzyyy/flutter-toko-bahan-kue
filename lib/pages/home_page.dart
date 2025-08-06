@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_toko_bahan_kue/api/auth_api.dart';
 import 'package:flutter_toko_bahan_kue/api/product_api.dart';
+import 'package:flutter_toko_bahan_kue/helper/auth_service.dart';
 import 'package:flutter_toko_bahan_kue/models/product_model.dart';
+import 'package:flutter_toko_bahan_kue/models/user_model.dart';
 import 'stok_page.dart';
 import 'riwayat_page.dart';
 import 'pending_page.dart'; // Tambahkan import
@@ -88,7 +91,7 @@ class _HomePageState extends State<HomePage> {
                     final product = {
                       'sku': productList[index].sku,
                       'name': productList[index].name,
-                      'category': productList[index].category.name,
+                      // 'category': productList[index].category.name,
                       'size': sizeOptions.first, // tambahkan default size
                     };
                     return _buildProductCard(product);
@@ -101,7 +104,7 @@ class _HomePageState extends State<HomePage> {
                     final product = {
                       'sku': productList[index].sku,
                       'name': productList[index].name,
-                      'category': productList[index].category.name,
+                      // 'category': productList[index].category.name,
                       'size': sizeOptions.first, // tambahkan default size
                     };
                     return _buildProductCard(product);
@@ -232,88 +235,166 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF00563B),
-        elevation: 2,
-        title: Row(
-          children: [
-            const Icon(Icons.store, color: Colors.white, size: 24),
-            const SizedBox(width: 10),
-            const Text(
-              'Toko Azka',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                letterSpacing: 1,
-              ),
+  Future<void> _logout() async {
+    // Show confirmation dialog
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.logout, color: Color(0xFF667eea)),
+              SizedBox(width: 10),
+              Text('Logout', style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          content: Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Batal', style: TextStyle(color: Colors.grey[600])),
             ),
-          ],
-        ),
-        actions: [
-          _buildCartIcon(),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'logout') {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/',
-                  (route) => false,
-                );
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                enabled: false,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Dayat Saputra',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Divider(),
-                  ],
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF667eea),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const PopupMenuItem(value: 'logout', child: Text('Logout')),
+              child: Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout == true) {
+      try {
+        await AuthApi.logout(); // panggil logout ke server
+      } catch (e) {
+        debugPrint('Logout gagal ke server: $e');
+      }
+
+      await AuthService.clearToken();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/');
+    }
+  }
+
+  Future<User> user = AuthApi.current();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<User>(
+      future: user,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        } else if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Terjadi kesalahan: ${snapshot.error}')),
+          );
+        } else if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: Text('Tidak ada data user')),
+          );
+        }
+
+        final currentUser = snapshot.data!;
+
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF00563B),
+            elevation: 2,
+            title: Row(
+              children: const [
+                Icon(Icons.store, color: Colors.white, size: 24),
+                SizedBox(width: 10),
+                Text(
+                  'Toko Azka',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              _buildCartIcon(),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'logout') {
+                    _logout();
+                    // Navigator.pushNamedAndRemoveUntil(
+                    //   context,
+                    //   '/',
+                    //   (route) => false,
+                    // );
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    enabled: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentUser.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const Divider(),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(value: 'logout', child: Text('Logout')),
+                ],
+                icon: const Icon(Icons.person, color: Colors.white),
+              ),
             ],
-            icon: const Icon(Icons.person, color: Colors.white),
           ),
-        ],
-      ),
-      backgroundColor: Colors.white,
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: _onPageChanged,
-        children: [
-          _buildProductList(context),
-          const StokPage(),
-          const PendingPage(),
-          const RiwayatPage(),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onNavTapped,
-        selectedItemColor: const Color(0xFF00563B),
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Utama'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory),
-            label: 'Stok Masuk',
+          backgroundColor: Colors.white,
+          body: PageView(
+            controller: _pageController,
+            onPageChanged: _onPageChanged,
+            children: [
+              _buildProductList(context),
+              const StokPage(),
+              const PendingPage(),
+              const RiwayatPage(),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.pending_actions),
-            label: 'Pending',
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: _onNavTapped,
+            selectedItemColor: const Color(0xFF00563B),
+            unselectedItemColor: Colors.grey,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Utama'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.inventory),
+                label: 'Stok Masuk',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.pending_actions),
+                label: 'Pending',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.history),
+                label: 'Riwayat',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
-        ],
-      ),
+        );
+      },
     );
   }
 }
