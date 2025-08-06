@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_toko_bahan_kue/api/product_api.dart';
+import 'package:flutter_toko_bahan_kue/models/product_model.dart';
 import 'stok_page.dart';
 import 'riwayat_page.dart';
 import 'pending_page.dart'; // Tambahkan import
@@ -14,13 +16,11 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   late PageController _pageController;
 
-  List<Map<String, dynamic>> products = [
-    {'name': 'Tepung Terigu', 'size': '1kg', 'stock': 20, 'price': 12000},
-    {'name': 'Gula Pasir', 'size': '1kg', 'stock': 15, 'price': 14000},
-    {'name': 'Mentega', 'size': '200gr', 'stock': 10, 'price': 8000},
-    {'name': 'Coklat Bubuk', 'size': '100gr', 'stock': 8, 'price': 10000},
-  ];
+  Future<List<Product>> products = ProductApi.fetchProductList();
+
   List<Map<String, dynamic>> cart = [];
+
+  final List<String> sizeOptions = ['250g', '500g', '1kg'];
 
   @override
   void initState() {
@@ -60,111 +60,162 @@ class _HomePageState extends State<HomePage> {
   Widget _buildProductList(BuildContext context) {
     final isWideScreen = MediaQuery.of(context).size.width > 600;
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: isWideScreen
-          ? GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 3.5,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                final product = products[index];
-                return _buildProductCard(product);
-              },
-            )
-          : ListView.separated(
-              itemCount: products.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final product = products[index];
-                return _buildProductCard(product);
-              },
-            ),
+    return FutureBuilder<List<Product>>(
+      future: products,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('Tidak ada produk tersedia.'));
+        }
+
+        final productList = snapshot.data!;
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: isWideScreen
+              ? GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 3.5,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: productList.length,
+                  itemBuilder: (context, index) {
+                    final product = {
+                      'sku': productList[index].sku,
+                      'name': productList[index].name,
+                      'category': productList[index].category.name,
+                      'size': sizeOptions.first, // tambahkan default size
+                    };
+                    return _buildProductCard(product);
+                  },
+                )
+              : ListView.separated(
+                  itemCount: productList.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final product = {
+                      'sku': productList[index].sku,
+                      'name': productList[index].name,
+                      'category': productList[index].category.name,
+                      'size': sizeOptions.first, // tambahkan default size
+                    };
+                    return _buildProductCard(product);
+                  },
+                ),
+        );
+      },
     );
   }
 
   Widget _buildProductCard(Map<String, dynamic> product) {
     return Card(
       elevation: 4,
-      color: const Color(0xFFE8F5E9), // Ubah warna card jadi hijau muda
+      color: const Color(0xFFE8F5E9),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        product['name'],
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF00563B),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00563B).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Stok: ${product['stock']}',
-                          style: const TextStyle(
-                            color: Color(0xFF00563B),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+            // Baris atas: Nama produk & stok di pojok kanan atas
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    product['name'],
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF00563B),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Ukuran: ${product['size']}',
-                    style: TextStyle(color: Colors.grey[700]),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Rp${product['price']}',
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00563B).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Stok: 1',
                     style: const TextStyle(
                       color: Color(0xFF00563B),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
-              onPressed: () => _addToCart(product),
-              icon: const Icon(Icons.add_shopping_cart),
-              label: const Text("Tambah"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00563B),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 8),
+            // Baris bawah: Ukuran, harga, tombol cart sejajar
+            Row(
+              children: [
+                const Text(
+                  'Ukuran : ',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF00563B)),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
+                DropdownButton<String>(
+                  value: product['size'] ?? sizeOptions.first,
+                  items: sizeOptions
+                      .map(
+                        (size) => DropdownMenuItem(
+                          value: size,
+                          child: Text(
+                            size,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      product['size'] = val!;
+                    });
+                  },
+                  underline: const SizedBox(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF00563B),
+                  ),
+                  dropdownColor: Colors.white,
                 ),
-                textStyle: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+                const SizedBox(width: 12),
+                Text(
+                  'Rp. 7000',
+                  style: const TextStyle(
+                    color: Color(0xFF00563B),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () => _addToCart(product),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00563B),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    elevation: 0,
+                  ),
+                  child: const Icon(Icons.add_shopping_cart),
+                ),
+              ],
             ),
           ],
         ),
@@ -234,7 +285,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      backgroundColor: Colors.white, // Ubah background halaman jadi putih
+      backgroundColor: Colors.white,
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,

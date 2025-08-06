@@ -67,7 +67,7 @@ class MyApp extends StatelessWidget {
         '/cart': (context) => const CartPage(),
         '/stok': (context) => const StokPage(),
         '/riwayat': (context) => const RiwayatPage(),
-        '/pending': (context) => const PendingPage(), // Add this line
+        '/pending': (context) => const PendingPage(),
       },
     );
   }

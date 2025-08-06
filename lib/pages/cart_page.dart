@@ -20,6 +20,8 @@ class _CartPageState extends State<CartPage> {
   double kembalian = 0;
   String paymentStatus = 'complete'; // default
 
+  final List<String> sizeOptions = ['250g', '500g', '1kg'];
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -34,7 +36,7 @@ class _CartPageState extends State<CartPage> {
   double get totalPrice {
     double total = 0;
     for (int i = 0; i < cart.length; i++) {
-      total += (cart[i]['price'] as int) * quantities[i];
+      total += (7000) * quantities[i];
     }
     return total;
   }
@@ -63,8 +65,8 @@ class _CartPageState extends State<CartPage> {
         for (int i = 0; i < cart.length; i++)
           {
             'name': cart[i]['name'] ?? cart[i]['nama'],
-            'size': cart[i]['size'] ?? cart[i]['ukuran'],
-            'jumlah': quantities[i],
+            'size': cart[i]['size'] ?? '250g', // atau default lain
+            'stock': cart[i]['stock'],
             'price': cart[i]['price'],
           },
       ],
@@ -151,78 +153,126 @@ class _CartPageState extends State<CartPage> {
                           itemBuilder: (context, index) {
                             final item = cart[index];
                             return Card(
-                              color: const Color(
-                                0xFFE8F5E9,
-                              ), // <- card hijau muda
+                              color: const Color(0xFFE8F5E9),
                               elevation: 2,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 10,
-                                  horizontal: 8,
+                                  vertical: 6, // dari 10 jadi 6
+                                  horizontal: 8, // dari 12 jadi 8
                                 ),
-                                child: ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    item['name'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Row atas: Nama produk & dropdown ukuran di kanan
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            item['name'],
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Row(
+                                          children: [
+                                            const Text(
+                                              'Ukuran: ',
+                                              style: TextStyle(fontSize: 13),
+                                            ),
+                                            DropdownButton<String>(
+                                              value: item['size'],
+                                              items: sizeOptions
+                                                  .map(
+                                                    (size) => DropdownMenuItem(
+                                                      value: size,
+                                                      child: Text(
+                                                        size,
+                                                        style: const TextStyle(
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  )
+                                                  .toList(),
+                                              onChanged: (val) {
+                                                setState(() {
+                                                  item['size'] = val!;
+                                                });
+                                              },
+                                              underline: const SizedBox(),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.black,
+                                              ),
+                                              dropdownColor: Colors.white,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  subtitle: Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      'Ukuran: ${item['size']} | Harga: Rp${item['price']}',
-                                      style: const TextStyle(fontSize: 13),
+                                    const SizedBox(height: 4),
+                                    // Row bawah: Nominal harga, jumlah, delete sejajar
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'Rp${item['price']}',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.remove_circle_outline,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              if (quantities[index] > 1) {
+                                                quantities[index]--;
+                                              }
+                                            });
+                                          },
+                                        ),
+                                        Text(
+                                          '${quantities[index]}',
+                                          style: const TextStyle(fontSize: 16),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.add_circle_outline,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              quantities[index]++;
+                                            });
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            color: Colors.red,
+                                          ),
+                                          tooltip: 'Hapus produk',
+                                          onPressed: () {
+                                            setState(() {
+                                              cart.removeAt(index);
+                                              quantities.removeAt(index);
+                                            });
+                                          },
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.remove_circle_outline,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            if (quantities[index] > 1) {
-                                              quantities[index]--;
-                                            }
-                                          });
-                                        },
-                                      ),
-                                      Text(
-                                        '${quantities[index]}',
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.add_circle_outline,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            quantities[index]++;
-                                          });
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                        ),
-                                        tooltip: 'Hapus produk',
-                                        onPressed: () {
-                                          setState(() {
-                                            cart.removeAt(index);
-                                            quantities.removeAt(index);
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               ),
                             );
