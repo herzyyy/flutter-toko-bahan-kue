@@ -13,8 +13,7 @@ class _PendingPageState extends State<PendingPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final transaksi =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final transaksi = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
     if (transaksi != null && transaksi['status'] == 'pending') {
       final isDuplicate = _pendingTransaksi.any(
@@ -29,15 +28,17 @@ class _PendingPageState extends State<PendingPage> {
   @override
   Widget build(BuildContext context) {
     const Color highlight = Color(0xFF00563B);
+    const Color cardColor = Color(0xFFF1F8F5);
     const Color textMain = Color(0xFF222222);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Status Pending',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         ),
         backgroundColor: highlight,
+        elevation: 4,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -54,10 +55,11 @@ class _PendingPageState extends State<PendingPage> {
                   final transaksi = _pendingTransaksi[index];
                   final List produk = transaksi['produk'] ?? [];
                   return Card(
+                    color: cardColor,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    elevation: 3,
+                    elevation: 6,
                     margin: const EdgeInsets.only(bottom: 16),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -65,22 +67,21 @@ class _PendingPageState extends State<PendingPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            transaksi['namaPelanggan']?.toString().isNotEmpty ==
-                                    true
+                            transaksi['namaPelanggan']?.toString().isNotEmpty == true
                                 ? transaksi['namaPelanggan']
                                 : 'Tanpa Nama',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 18,
                               color: highlight,
                             ),
                           ),
+                          const SizedBox(height: 4),
                           Text(
-                            transaksi['tanggal']?.toString().substring(0, 16) ??
-                                '-',
+                            transaksi['tanggal']?.toString().substring(0, 16) ?? '-',
                             style: const TextStyle(
                               color: Colors.grey,
-                              fontSize: 12,
+                              fontSize: 13,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -88,9 +89,11 @@ class _PendingPageState extends State<PendingPage> {
                             'Daftar Produk:',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
+                              fontSize: 15,
                               color: highlight,
                             ),
                           ),
+                          const SizedBox(height: 6),
                           ...produk.map<Widget>((item) {
                             final name = item['name'] ?? '';
                             final size = item['size'] ?? '';
@@ -99,33 +102,38 @@ class _PendingPageState extends State<PendingPage> {
                             final total = price * jumlah;
 
                             return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
                                       '$name ($size) x$jumlah',
                                       style: const TextStyle(
+                                        fontSize: 14,
                                         color: Colors.black87,
                                       ),
                                     ),
                                   ),
                                   Text(
                                     'Rp$total',
-                                    style: const TextStyle(color: textMain),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: textMain,
+                                    ),
                                   ),
                                 ],
                               ),
                             );
-                          }),
+                          }).toList(),
                           const Divider(height: 24, color: highlight),
                           Text(
                             'Status: Pending',
                             style: TextStyle(
                               color: Colors.orange[700],
                               fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
                         ],

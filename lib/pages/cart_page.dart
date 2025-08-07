@@ -12,13 +12,12 @@ class _CartPageState extends State<CartPage> {
   late List<int> quantities;
   double discount = 0;
   final TextEditingController _discountController = TextEditingController();
-  final TextEditingController _namaPelangganController =
-      TextEditingController();
+  final TextEditingController _namaPelangganController = TextEditingController();
   String paymentType = 'Tunai';
   final TextEditingController _uangCustomerController = TextEditingController();
   double uangCustomer = 0;
   double kembalian = 0;
-  String paymentStatus = 'complete'; // default
+  String paymentStatus = 'complete';
 
   final List<String> sizeOptions = ['250g', '500g', '1kg'];
 
@@ -26,9 +25,7 @@ class _CartPageState extends State<CartPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     cart = List<Map<String, dynamic>>.from(
-      ModalRoute.of(context)?.settings.arguments
-              as List<Map<String, dynamic>>? ??
-          [],
+      ModalRoute.of(context)?.settings.arguments as List<Map<String, dynamic>>? ?? [],
     );
     quantities = List<int>.filled(cart.length, 1);
   }
@@ -65,7 +62,7 @@ class _CartPageState extends State<CartPage> {
         for (int i = 0; i < cart.length; i++)
           {
             'name': cart[i]['name'] ?? cart[i]['nama'],
-            'size': cart[i]['size'] ?? '250g', // atau default lain
+            'size': cart[i]['size'] ?? '250g',
             'stock': cart[i]['stock'],
             'price': cart[i]['price'],
           },
@@ -77,7 +74,7 @@ class _CartPageState extends State<CartPage> {
       'uangCustomer': uangCustomer,
       'kembalian': kembalian,
       'tanggal': DateTime.now().toString().substring(0, 16),
-      'status': paymentStatus, // Tambahkan status
+      'status': paymentStatus,
     };
 
     Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
@@ -93,7 +90,6 @@ class _CartPageState extends State<CartPage> {
   @override
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF00563B);
-    const Color cardBg = Color(0xFFF6F6F6);
 
     return Scaffold(
       appBar: AppBar(
@@ -102,359 +98,75 @@ class _CartPageState extends State<CartPage> {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 2,
       ),
-      backgroundColor: Colors.white, // <- background halaman putih
+      backgroundColor: const Color(0xFFFDFDFD),
       body: LayoutBuilder(
         builder: (context, constraints) {
           double horizontalPadding = constraints.maxWidth > 600 ? 64 : 16;
 
           return Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: horizontalPadding,
-              vertical: 16,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16),
             child: cart.isEmpty
                 ? const Center(child: Text('Keranjang kosong'))
                 : SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Nama Pelanggan
-                        const Text(
-                          'Nama Pelanggan',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextField(
+                        _buildSectionTitle('Nama Pelanggan'),
+                        _buildInputField(
                           controller: _namaPelangganController,
-                          decoration: InputDecoration(
-                            hintText: 'Masukkan nama pelanggan',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            prefixIcon: const Icon(Icons.person_outline),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                          ),
+                          hintText: 'Masukkan nama pelanggan',
+                          icon: Icons.person_outline,
                         ),
                         const SizedBox(height: 24),
 
-                        // List produk di keranjang
                         ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: cart.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final item = cart[index];
-                            return Card(
-                              color: const Color(0xFFE8F5E9),
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6, // dari 10 jadi 6
-                                  horizontal: 8, // dari 12 jadi 8
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Row atas: Nama produk & dropdown ukuran di kanan
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            item['name'],
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        Row(
-                                          children: [
-                                            const Text(
-                                              'Ukuran: ',
-                                              style: TextStyle(fontSize: 13),
-                                            ),
-                                            DropdownButton<String>(
-                                              value: item['size'],
-                                              items: sizeOptions
-                                                  .map(
-                                                    (size) => DropdownMenuItem(
-                                                      value: size,
-                                                      child: Text(
-                                                        size,
-                                                        style: const TextStyle(
-                                                          fontSize: 13,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  )
-                                                  .toList(),
-                                              onChanged: (val) {
-                                                setState(() {
-                                                  item['size'] = val!;
-                                                });
-                                              },
-                                              underline: const SizedBox(),
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.black,
-                                              ),
-                                              dropdownColor: Colors.white,
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    // Row bawah: Nominal harga, jumlah, delete sejajar
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            'Rp${item['price']}',
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              if (quantities[index] > 1) {
-                                                quantities[index]--;
-                                              }
-                                            });
-                                          },
-                                        ),
-                                        Text(
-                                          '${quantities[index]}',
-                                          style: const TextStyle(fontSize: 16),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.add_circle_outline,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              quantities[index]++;
-                                            });
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.red,
-                                          ),
-                                          tooltip: 'Hapus produk',
-                                          onPressed: () {
-                                            setState(() {
-                                              cart.removeAt(index);
-                                              quantities.removeAt(index);
-                                            });
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) => _buildCartItem(index),
                         ),
-
                         const SizedBox(height: 24),
 
-                        // Diskon input
-                        const Text(
-                          'Diskon / Potongan Harga',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextField(
+                        _buildSectionTitle('Diskon / Potongan Harga'),
+                        _buildInputField(
                           controller: _discountController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: '0',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            prefixIcon: const Icon(Icons.discount_outlined),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                          ),
+                          hintText: '0',
+                          icon: Icons.discount_outlined,
                           onChanged: _updateDiscount,
+                          isNumber: true,
                         ),
-
                         const SizedBox(height: 24),
 
-                        // Rangkuman Total Harga
-                        Card(
-                          color: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                _buildSummaryRow(
-                                  'Total',
-                                  'Rp${totalPrice.toStringAsFixed(0)}',
-                                ),
-                                _buildSummaryRow(
-                                  'Potongan',
-                                  '- Rp${discount.toStringAsFixed(0)}',
-                                ),
-                                const Divider(),
-                                _buildSummaryRow(
-                                  'Total Akhir',
-                                  'Rp${finalPrice.toStringAsFixed(0)}',
-                                  highlight: true,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
+                        _buildPriceSummary(),
                         const SizedBox(height: 24),
 
-                        // Jenis Pembayaran
-                        const Text(
-                          'Jenis Pembayaran',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Radio<String>(
-                              value: 'Tunai',
-                              groupValue: paymentType,
-                              onChanged: (val) {
-                                setState(() {
-                                  paymentType = val!;
-                                });
-                              },
-                              activeColor: primaryColor,
-                            ),
-                            const Text('Tunai'),
-                            Radio<String>(
-                              value: 'Non Tunai',
-                              groupValue: paymentType,
-                              onChanged: (val) {
-                                setState(() {
-                                  paymentType = val!;
-                                });
-                              },
-                              activeColor: primaryColor,
-                            ),
-                            const Text('Non Tunai'),
-                          ],
-                        ),
-
+                        _buildSectionTitle('Jenis Pembayaran'),
+                        _buildRadioOptions(['Tunai', 'Non Tunai'], paymentType, (val) {
+                          setState(() => paymentType = val);
+                        }),
                         const SizedBox(height: 16),
 
-                        // Input uang customer
-                        const Text(
-                          'Jumlah Uang dari Customer',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextField(
+                        _buildSectionTitle('Jumlah Uang dari Customer'),
+                        _buildInputField(
                           controller: _uangCustomerController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: '0',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            prefixIcon: const Icon(Icons.payments_outlined),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                          ),
+                          hintText: '0',
+                          icon: Icons.payments_outlined,
                           onChanged: _updateUangCustomer,
+                          isNumber: true,
                         ),
-
                         const SizedBox(height: 12),
 
-                        // Tampilkan kembalian
                         if (paymentType == 'Tunai')
-                          _buildSummaryRow(
-                            'Kembalian',
-                            'Rp${kembalian.toStringAsFixed(0)}',
-                            highlight: true,
-                          ),
-
+                          _buildSummaryRow('Kembalian', 'Rp${kembalian.toStringAsFixed(0)}', highlight: true),
                         const SizedBox(height: 24),
 
-                        // Status Pembayaran
-                        const Text(
-                          'Status Pembayaran',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Radio<String>(
-                              value: 'complete',
-                              groupValue: paymentStatus,
-                              onChanged: (val) {
-                                setState(() {
-                                  paymentStatus = val!;
-                                });
-                              },
-                              activeColor: primaryColor,
-                            ),
-                            const Text('Complete'),
-                            Radio<String>(
-                              value: 'pending',
-                              groupValue: paymentStatus,
-                              onChanged: (val) {
-                                setState(() {
-                                  paymentStatus = val!;
-                                });
-                              },
-                              activeColor: primaryColor,
-                            ),
-                            const Text('Pending'),
-                          ],
-                        ),
-
+                        _buildSectionTitle('Status Pembayaran'),
+                        _buildRadioOptions(['complete', 'pending'], paymentStatus, (val) {
+                          setState(() => paymentStatus = val);
+                        }),
                         const SizedBox(height: 24),
 
-                        // Tombol Selesai
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -468,10 +180,7 @@ class _CartPageState extends State<CartPage> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                              textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                           ),
                         ),
@@ -484,11 +193,123 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  Widget _buildSummaryRow(
-    String label,
-    String value, {
-    bool highlight = false,
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    bool isNumber = false,
+    void Function(String)? onChanged,
   }) {
+    return TextField(
+      controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        hintText: hintText,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        prefixIcon: Icon(icon),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _buildCartItem(int index) {
+    final item = cart[index];
+    return Card(
+      color: const Color(0xFFF1F8F5),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    item['name'],
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Row(
+                  children: [
+                    const Text('Ukuran: ', style: TextStyle(fontSize: 13)),
+                    DropdownButton<String>(
+                      value: item['size'],
+                      items: sizeOptions.map((size) => DropdownMenuItem(value: size, child: Text(size))).toList(),
+                      onChanged: (val) => setState(() => item['size'] = val!),
+                      underline: const SizedBox(),
+                      style: const TextStyle(fontSize: 13, color: Colors.black),
+                      dropdownColor: Colors.white,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Rp${item['price']}',
+                    style: const TextStyle(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: () => setState(() => quantities[index] > 1 ? quantities[index]-- : null),
+                ),
+                Text('${quantities[index]}', style: const TextStyle(fontSize: 16)),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: () => setState(() => quantities[index]++),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Hapus produk',
+                  onPressed: () => setState(() {
+                    cart.removeAt(index);
+                    quantities.removeAt(index);
+                  }),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceSummary() {
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            _buildSummaryRow('Total', 'Rp${totalPrice.toStringAsFixed(0)}'),
+            _buildSummaryRow('Potongan', '- Rp${discount.toStringAsFixed(0)}'),
+            const Divider(),
+            _buildSummaryRow('Total Akhir', 'Rp${finalPrice.toStringAsFixed(0)}', highlight: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value, {bool highlight = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -511,6 +332,28 @@ class _CartPageState extends State<CartPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRadioOptions(List<String> options, String groupValue, Function(String) onChanged) {
+    return Wrap(
+      spacing: 16,
+      children: options
+          .map(
+            (option) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Radio<String>(
+                  value: option,
+                  groupValue: groupValue,
+                  onChanged: (val) => onChanged(val!),
+                  activeColor: const Color(0xFF00563B),
+                ),
+                Text(option),
+              ],
+            ),
+          )
+          .toList(),
     );
   }
 }

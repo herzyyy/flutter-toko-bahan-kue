@@ -5,6 +5,7 @@ import 'pages/cart_page.dart';
 import 'pages/stok_page.dart';
 import 'pages/riwayat_page.dart';
 import 'pages/pending_page.dart'; // Import PendingPage
+import 'pages/profil.dart'; // Import ProfilPage
 
 void main() {
   runApp(const MyApp());
@@ -68,6 +69,7 @@ class MyApp extends StatelessWidget {
         '/stok': (context) => const StokPage(),
         '/riwayat': (context) => const RiwayatPage(),
         '/pending': (context) => const PendingPage(),
+        '/profile': (context) => const ProfilPage(),
       },
     );
   }

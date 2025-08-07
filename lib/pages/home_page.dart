@@ -6,7 +6,7 @@ import 'package:flutter_toko_bahan_kue/models/product_model.dart';
 import 'package:flutter_toko_bahan_kue/models/user_model.dart';
 import 'stok_page.dart';
 import 'riwayat_page.dart';
-import 'pending_page.dart'; // Tambahkan import
+import 'pending_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -21,9 +21,12 @@ class _HomePageState extends State<HomePage> {
 
   Future<List<Product>> products = ProductApi.fetchProductList();
 
-  List<Map<String, dynamic>> cart = [];
-
   final List<String> sizeOptions = ['250g', '500g', '1kg'];
+  List<Map<String, dynamic>> displayedProducts = [];
+  List<Map<String, dynamic>> cart = [];
+  List<int> quantities = [];
+
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -34,6 +37,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _pageController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -56,7 +60,43 @@ class _HomePageState extends State<HomePage> {
 
   void _addToCart(Map<String, dynamic> product) {
     setState(() {
-      cart.add(product);
+      final existingIndex = cart.indexWhere(
+        (item) => item['name'] == product['name'] && item['size'] == product['size'],
+      );
+      if (existingIndex != -1) {
+        quantities[existingIndex]++;
+      } else {
+        cart.add({
+          'name': product['name'],
+          'size': product['size'],
+          'stock': product['stock'] ?? 1,
+          'price': product['price'] ?? 7000,
+        });
+        quantities.add(1);
+      }
+    });
+  }
+
+  void _filterProducts(String query) async {
+    final allProducts = await products;
+    setState(() {
+      final matched = <Map<String, dynamic>>[];
+      final unmatched = <Map<String, dynamic>>[];
+
+      for (var p in allProducts) {
+        final productMap = {
+          'sku': p.sku,
+          'name': p.name,
+          'size': null,
+        };
+        if (p.name.toLowerCase().contains(query.toLowerCase())) {
+          matched.add(productMap);
+        } else {
+          unmatched.add(productMap);
+        }
+      }
+
+      displayedProducts = [...matched, ...unmatched];
     });
   }
 
@@ -74,59 +114,76 @@ class _HomePageState extends State<HomePage> {
           return const Center(child: Text('Tidak ada produk tersedia.'));
         }
 
-        final productList = snapshot.data!;
+        if (displayedProducts.isEmpty) {
+          displayedProducts = snapshot.data!
+              .map((p) => {
+                    'sku': p.sku,
+                    'name': p.name,
+                    'size': null,
+                  })
+              .toList();
+        }
 
         return Padding(
           padding: const EdgeInsets.all(16),
-          child: isWideScreen
-              ? GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 3.5,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
+          child: Column(
+            children: [
+              TextField(
+                controller: _searchController,
+                onChanged: _filterProducts,
+                decoration: InputDecoration(
+                  hintText: 'Cari produk...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
                   ),
-                  itemCount: productList.length,
-                  itemBuilder: (context, index) {
-                    final product = {
-                      'sku': productList[index].sku,
-                      'name': productList[index].name,
-                      // 'category': productList[index].category.name,
-                      'size': sizeOptions.first, // tambahkan default size
-                    };
-                    return _buildProductCard(product);
-                  },
-                )
-              : ListView.separated(
-                  itemCount: productList.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final product = {
-                      'sku': productList[index].sku,
-                      'name': productList[index].name,
-                      // 'category': productList[index].category.name,
-                      'size': sizeOptions.first, // tambahkan default size
-                    };
-                    return _buildProductCard(product);
-                  },
                 ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: isWideScreen
+                    ? GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 3.5,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                        itemCount: displayedProducts.length,
+                        itemBuilder: (context, index) {
+                          return _buildProductCard(displayedProducts[index], index);
+                        },
+                      )
+                    : ListView.separated(
+                        itemCount: displayedProducts.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          return _buildProductCard(displayedProducts[index], index);
+                        },
+                      ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> product) {
+  Widget _buildProductCard(Map<String, dynamic> product, int index) {
     return Card(
-      elevation: 4,
-      color: const Color(0xFFE8F5E9),
+      elevation: 6,
+      color: const Color(0xFFF1F8F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Baris atas: Nama produk & stok di pojok kanan atas
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -142,17 +199,14 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFF00563B).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Stok: 1',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Color(0xFF00563B),
                       fontWeight: FontWeight.w600,
                     ),
@@ -160,8 +214,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            // Baris bawah: Ukuran, harga, tombol cart sejajar
+            const SizedBox(height: 12),
             Row(
               children: [
                 const Text(
@@ -169,34 +222,29 @@ class _HomePageState extends State<HomePage> {
                   style: TextStyle(fontSize: 14, color: Color(0xFF00563B)),
                 ),
                 DropdownButton<String>(
-                  value: product['size'] ?? sizeOptions.first,
+                  value: product['size'],
+                  hint: const Text(
+                    'Pilih ukuran',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  isExpanded: false,
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF00563B)),
+                  underline: const SizedBox(),
+                  borderRadius: BorderRadius.circular(12),
+                  dropdownColor: Colors.white,
                   items: sizeOptions
-                      .map(
-                        (size) => DropdownMenuItem(
-                          value: size,
-                          child: Text(
-                            size,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      )
+                      .map((size) => DropdownMenuItem(value: size, child: Text(size)))
                       .toList(),
                   onChanged: (val) {
                     setState(() {
-                      product['size'] = val!;
+                      product['size'] = val;
                     });
                   },
-                  underline: const SizedBox(),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF00563B),
-                  ),
-                  dropdownColor: Colors.white,
                 ),
                 const SizedBox(width: 12),
-                Text(
+                const Text(
                   'Rp. 7000',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Color(0xFF00563B),
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -209,12 +257,10 @@ class _HomePageState extends State<HomePage> {
                     backgroundColor: const Color(0xFF00563B),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    padding: const EdgeInsets.all(12),
-                    minimumSize: const Size(0, 0),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    elevation: 2,
                   ),
                   child: const Icon(Icons.add_shopping_cart),
                 ),
@@ -236,22 +282,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _logout() async {
-    // Show confirmation dialog
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
-            children: [
+            children: const [
               Icon(Icons.logout, color: Color(0xFF667eea)),
               SizedBox(width: 10),
               Text('Logout', style: TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
-          content: Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
+          content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -260,13 +303,13 @@ class _HomePageState extends State<HomePage> {
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF667eea),
+                backgroundColor: const Color(0xFF667eea),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: Text('Logout'),
+              child: const Text('Logout'),
             ),
           ],
         );
@@ -275,7 +318,7 @@ class _HomePageState extends State<HomePage> {
 
     if (shouldLogout == true) {
       try {
-        await AuthApi.logout(); // panggil logout ke server
+        await AuthApi.logout();
       } catch (e) {
         debugPrint('Logout gagal ke server: $e');
       }
@@ -294,17 +337,11 @@ class _HomePageState extends State<HomePage> {
       future: user,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         } else if (snapshot.hasError) {
-          return Scaffold(
-            body: Center(child: Text('Terjadi kesalahan: ${snapshot.error}')),
-          );
+          return Scaffold(body: Center(child: Text('Terjadi kesalahan: ${snapshot.error}')));
         } else if (!snapshot.hasData) {
-          return const Scaffold(
-            body: Center(child: Text('Tidak ada data user')),
-          );
+          return const Scaffold(body: Center(child: Text('Tidak ada data user')));
         }
 
         final currentUser = snapshot.data!;
@@ -312,18 +349,18 @@ class _HomePageState extends State<HomePage> {
         return Scaffold(
           appBar: AppBar(
             backgroundColor: const Color(0xFF00563B),
-            elevation: 2,
-            title: Row(
-              children: const [
-                Icon(Icons.store, color: Colors.white, size: 24),
-                SizedBox(width: 10),
+            elevation: 3,
+            titleSpacing: 16,
+            title: const Row(
+              children: [
+                Icon(Icons.store, color: Colors.white),
+                SizedBox(width: 12),
                 Text(
                   'Toko Azka',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                     fontSize: 20,
-                    letterSpacing: 1,
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -332,13 +369,10 @@ class _HomePageState extends State<HomePage> {
               _buildCartIcon(),
               PopupMenuButton<String>(
                 onSelected: (value) {
-                  if (value == 'logout') {
+                  if (value == 'profile') {
+                    Navigator.pushNamed(context, '/profile');
+                  } else if (value == 'logout') {
                     _logout();
-                    // Navigator.pushNamedAndRemoveUntil(
-                    //   context,
-                    //   '/',
-                    //   (route) => false,
-                    // );
                   }
                 },
                 itemBuilder: (context) => [
@@ -347,14 +381,12 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          currentUser.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                        Text(currentUser.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                         const Divider(),
                       ],
                     ),
                   ),
+                  const PopupMenuItem(value: 'profile', child: Text('Profil')),
                   const PopupMenuItem(value: 'logout', child: Text('Logout')),
                 ],
                 icon: const Icon(Icons.person, color: Colors.white),
@@ -376,21 +408,16 @@ class _HomePageState extends State<HomePage> {
             currentIndex: _selectedIndex,
             onTap: _onNavTapped,
             selectedItemColor: const Color(0xFF00563B),
-            unselectedItemColor: Colors.grey,
+            unselectedItemColor: Colors.grey[500],
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Utama'),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.inventory),
-                label: 'Stok Masuk',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.pending_actions),
-                label: 'Pending',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.history),
-                label: 'Riwayat',
-              ),
+              BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'Stok Masuk'),
+              BottomNavigationBarItem(icon: Icon(Icons.pending_actions), label: 'Pending'),
+              BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
             ],
           ),
         );

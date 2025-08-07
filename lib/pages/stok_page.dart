@@ -9,32 +9,36 @@ class StokPage extends StatefulWidget {
 
 class _StokPageState extends State<StokPage> {
   final _formKey = GlobalKey<FormState>();
-
   String? selectedDistributor;
 
-  // List produk
   final List<String> namaProdukList = ['Air Mineral', 'Teh Botol', 'Kopi'];
   final List<String> ukuranList = ['250ml', '500ml', '1L'];
-  final List<String> distributorList = [
-    'Distributor A',
-    'Distributor B',
-    'Distributor C',
-  ];
+  final List<String> distributorList = ['Distributor A', 'Distributor B', 'Distributor C'];
 
-  // List stok produk yang bisa diubah
-  late List<Map<String, dynamic>> produkStokList;
+  List<Map<String, dynamic>> produkStokList = [];
+  final TextEditingController _produkSearchController = TextEditingController();
+  List<String> hasilPencarian = [];
 
-  @override
-  void initState() {
-    super.initState();
-    produkStokList = List.generate(
-      namaProdukList.length,
-      (i) => {
-        'nama': namaProdukList[i],
-        'ukuran': ukuranList[i % ukuranList.length],
+  void _tambahProduk(String nama) {
+    setState(() {
+      produkStokList.add({
+        'nama': nama,
+        'ukuran': '',
         'stok': 0,
-      },
-    );
+        'harga': 0,
+      });
+      _produkSearchController.clear();
+      hasilPencarian.clear();
+    });
+  }
+
+  void _filterProduk(String query) {
+    final hasil = namaProdukList
+        .where((item) => item.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+    setState(() {
+      hasilPencarian = hasil;
+    });
   }
 
   void _eksekusiBarangMasuk() {
@@ -44,16 +48,15 @@ class _StokPageState extends State<StokPage> {
       );
       return;
     }
+
     List<Map<String, dynamic>> produkMasuk = produkStokList
         .where((p) => p['stok'] > 0)
-        .map(
-          (p) => {
-            'nama': p['nama'],
-            'ukuran': p['ukuran'],
-            'stok': p['stok'],
-            'harga': p['harga'], // tambahkan harga
-          },
-        )
+        .map((p) => {
+              'nama': p['nama'],
+              'ukuran': p['ukuran'],
+              'stok': p['stok'],
+              'harga': p['harga'],
+            })
         .toList();
 
     if (produkMasuk.isEmpty) {
@@ -70,203 +73,179 @@ class _StokPageState extends State<StokPage> {
       'produk': produkMasuk,
     };
 
-    // Kirim ke halaman riwayat
     Navigator.pushNamed(context, '/riwayat', arguments: barangMasukRiwayat);
 
     setState(() {
-      for (var produk in produkStokList) {
-        produk['stok'] = 0;
-      }
+      produkStokList.clear();
       selectedDistributor = null;
+      _produkSearchController.clear();
+      hasilPencarian.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF00563B);
-    const Color cardBg = Color(0xFFF6F6F6);
+    const Color cardColor = Color(0xFFF1F8F5);
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        elevation: 2,
-        title: Row(
-          children: [
-            const Icon(Icons.inventory, color: Colors.white, size: 24),
-            const SizedBox(width: 10),
-            const Text(
-              'Stok Barang Masuk',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-        centerTitle: false,
-      ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              // Produk List (scrollable only)
+              TextFormField(
+                controller: _produkSearchController,
+                decoration: InputDecoration(
+                  hintText: 'cari untuk menambahkan produk',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onChanged: _filterProduk,
+              ),
+              if (hasilPencarian.isNotEmpty)
+                ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: hasilPencarian.length,
+                  itemBuilder: (context, i) {
+                    final nama = hasilPencarian[i];
+                    return ListTile(
+                      title: Text(nama),
+                      trailing: const Icon(Icons.add),
+                      onTap: () => _tambahProduk(nama),
+                    );
+                  },
+                ),
+              const SizedBox(height: 16),
               Expanded(
                 child: ListView.builder(
                   itemCount: produkStokList.length,
                   itemBuilder: (context, i) {
                     final produk = produkStokList[i];
                     return Card(
-                      color: const Color(0xFFE8F5E9), // hijau muda
+                      color: cardColor,
+                      elevation: 2,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      elevation: 3,
-                      margin: const EdgeInsets.only(bottom: 14),
+                      margin: const EdgeInsets.only(bottom: 16),
                       child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Row(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        produk['nama'],
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 17,
-                                          color: primaryColor,
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: primaryColor.withOpacity(0.08),
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'Ukuran: ${produk['ukuran']}',
-                                          style: const TextStyle(
-                                            color: primaryColor,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  produk['nama'],
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
                                   ),
-                                  const SizedBox(height: 14),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Harga',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w500,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            SizedBox(
-                                              height: 40,
-                                              child: TextFormField(
-                                                initialValue:
-                                                    produk['harga']
-                                                        ?.toString() ??
-                                                    '',
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                decoration: InputDecoration(
-                                                  hintText: '0',
-                                                  prefixText: 'Rp',
-                                                  contentPadding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 12,
-                                                      ),
-                                                  border: OutlineInputBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                ),
-                                                onChanged: (val) {
-                                                  setState(() {
-                                                    produk['harga'] =
-                                                        int.tryParse(val) ?? 0;
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Stok',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w500,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            SizedBox(
-                                              height: 40,
-                                              child: TextFormField(
-                                                initialValue: produk['stok']
-                                                    .toString(),
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                decoration: InputDecoration(
-                                                  hintText: '0',
-                                                  contentPadding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 12,
-                                                      ),
-                                                  border: OutlineInputBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                ),
-                                                onChanged: (val) {
-                                                  setState(() {
-                                                    produk['stok'] =
-                                                        int.tryParse(val) ?? 0;
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () {
+                                    setState(() {
+                                      produkStokList.removeAt(i);
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: produk['ukuran'] != '' ? produk['ukuran'] : null,
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
+                              hint: const Text('Pilih ukuran'),
+                              items: ukuranList
+                                  .map((ukuran) => DropdownMenuItem(
+                                        value: ukuran,
+                                        child: Text(ukuran),
+                                      ))
+                                  .toList(),
+                              onChanged: (val) {
+                                setState(() {
+                                  produk['ukuran'] = val ?? '';
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Harga'),
+                                      const SizedBox(height: 4),
+                                      TextFormField(
+                                        initialValue: produk['harga']?.toString() ?? '',
+                                        keyboardType: TextInputType.number,
+                                        decoration: InputDecoration(
+                                          prefixText: 'Rp ',
+                                          hintText: '0',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        onChanged: (val) {
+                                          setState(() {
+                                            produk['harga'] = int.tryParse(val) ?? 0;
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Stok'),
+                                      const SizedBox(height: 4),
+                                      TextFormField(
+                                        initialValue: produk['stok'].toString(),
+                                        keyboardType: TextInputType.number,
+                                        decoration: InputDecoration(
+                                          hintText: '0',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        onChanged: (val) {
+                                          setState(() {
+                                            produk['stok'] = int.tryParse(val) ?? 0;
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -275,7 +254,6 @@ class _StokPageState extends State<StokPage> {
                   },
                 ),
               ),
-              // Form distributor & tombol eksekusi (fixed)
               buildDropdown(
                 value: selectedDistributor,
                 label: 'Asal Distributor',
@@ -283,7 +261,7 @@ class _StokPageState extends State<StokPage> {
                 items: distributorList,
                 onChanged: (val) => setState(() => selectedDistributor = val),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -327,6 +305,8 @@ class _StokPageState extends State<StokPage> {
           labelText: label,
           prefixIcon: Icon(icon, color: primaryColor),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
+          fillColor: Colors.white,
         ),
         isExpanded: true,
         items: items
