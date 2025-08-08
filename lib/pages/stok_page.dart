@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_toko_bahan_kue/api/product_api.dart';
+import 'package:flutter_toko_bahan_kue/models/product_model.dart';
 
 class StokPage extends StatefulWidget {
   const StokPage({Key? key}) : super(key: key);
@@ -11,30 +13,39 @@ class _StokPageState extends State<StokPage> {
   final _formKey = GlobalKey<FormState>();
   String? selectedDistributor;
 
-  final List<String> namaProdukList = ['Air Mineral', 'Teh Botol', 'Kopi'];
   final List<String> ukuranList = ['250ml', '500ml', '1L'];
   final List<String> distributorList = ['Distributor A', 'Distributor B', 'Distributor C'];
 
   List<Map<String, dynamic>> produkStokList = [];
   final TextEditingController _produkSearchController = TextEditingController();
-  List<String> hasilPencarian = [];
+  List<Product> hasilPencarian = [];
 
-  void _tambahProduk(String nama) {
+  late Future<List<Product>> products;
+
+  @override
+  void initState() {
+    super.initState();
+    products = ProductApi.fetchProductList();
+  }
+
+  void _tambahProduk(Product produk) {
     setState(() {
       produkStokList.add({
-        'nama': nama,
-        'ukuran': '',
-        'stok': 0,
-        'harga': 0,
+        'sku': produk.sku,
+        'name': produk.name,
+        'size': null,
+        'stock': 0,
+        'price': 0,
       });
       _produkSearchController.clear();
       hasilPencarian.clear();
     });
   }
 
-  void _filterProduk(String query) {
-    final hasil = namaProdukList
-        .where((item) => item.toLowerCase().contains(query.toLowerCase()))
+  void _filterProduk(String query) async {
+    final allProducts = await products;
+    final hasil = allProducts
+        .where((item) => item.name.toLowerCase().contains(query.toLowerCase()))
         .toList();
     setState(() {
       hasilPencarian = hasil;
@@ -50,12 +61,13 @@ class _StokPageState extends State<StokPage> {
     }
 
     List<Map<String, dynamic>> produkMasuk = produkStokList
-        .where((p) => p['stok'] > 0)
+        .where((p) => p['stock'] > 0)
         .map((p) => {
-              'nama': p['nama'],
-              'ukuran': p['ukuran'],
-              'stok': p['stok'],
-              'harga': p['harga'],
+              'sku': p['sku'],
+              'name': p['name'],
+              'size': p['size'],
+              'stock': p['stock'],
+              'price': p['price'],
             })
         .toList();
 
@@ -98,7 +110,7 @@ class _StokPageState extends State<StokPage> {
               TextFormField(
                 controller: _produkSearchController,
                 decoration: InputDecoration(
-                  hintText: 'cari untuk menambahkan produk',
+                  hintText: 'Cari untuk menambahkan produk',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: Colors.white,
@@ -113,11 +125,11 @@ class _StokPageState extends State<StokPage> {
                   shrinkWrap: true,
                   itemCount: hasilPencarian.length,
                   itemBuilder: (context, i) {
-                    final nama = hasilPencarian[i];
+                    final produk = hasilPencarian[i];
                     return ListTile(
-                      title: Text(nama),
+                      title: Text(produk.name),
                       trailing: const Icon(Icons.add),
-                      onTap: () => _tambahProduk(nama),
+                      onTap: () => _tambahProduk(produk),
                     );
                   },
                 ),
@@ -143,7 +155,7 @@ class _StokPageState extends State<StokPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  produk['nama'],
+                                  produk['name'],
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -162,7 +174,7 @@ class _StokPageState extends State<StokPage> {
                             ),
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
-                              value: produk['ukuran'] != '' ? produk['ukuran'] : null,
+                              value: produk['size'],
                               decoration: InputDecoration(
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(
@@ -184,7 +196,7 @@ class _StokPageState extends State<StokPage> {
                                   .toList(),
                               onChanged: (val) {
                                 setState(() {
-                                  produk['ukuran'] = val ?? '';
+                                  produk['size'] = val;
                                 });
                               },
                             ),
@@ -198,7 +210,7 @@ class _StokPageState extends State<StokPage> {
                                       const Text('Harga'),
                                       const SizedBox(height: 4),
                                       TextFormField(
-                                        initialValue: produk['harga']?.toString() ?? '',
+                                        initialValue: produk['price']?.toString() ?? '',
                                         keyboardType: TextInputType.number,
                                         decoration: InputDecoration(
                                           prefixText: 'Rp ',
@@ -211,7 +223,7 @@ class _StokPageState extends State<StokPage> {
                                         ),
                                         onChanged: (val) {
                                           setState(() {
-                                            produk['harga'] = int.tryParse(val) ?? 0;
+                                            produk['price'] = int.tryParse(val) ?? 0;
                                           });
                                         },
                                       ),
@@ -226,7 +238,7 @@ class _StokPageState extends State<StokPage> {
                                       const Text('Stok'),
                                       const SizedBox(height: 4),
                                       TextFormField(
-                                        initialValue: produk['stok'].toString(),
+                                        initialValue: produk['stock'].toString(),
                                         keyboardType: TextInputType.number,
                                         decoration: InputDecoration(
                                           hintText: '0',
@@ -238,7 +250,7 @@ class _StokPageState extends State<StokPage> {
                                         ),
                                         onChanged: (val) {
                                           setState(() {
-                                            produk['stok'] = int.tryParse(val) ?? 0;
+                                            produk['stock'] = int.tryParse(val) ?? 0;
                                           });
                                         },
                                       ),
