@@ -8,8 +8,11 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
-  late List<Map<String, dynamic>> cart;
-  late List<int> quantities;
+  bool _initialized = false;
+
+  late List<Map<String, dynamic>> cart = [];
+  late List<int> quantities = [];
+
   double discount = 0;
   final TextEditingController _discountController = TextEditingController();
   final TextEditingController _namaPelangganController = TextEditingController();
@@ -24,16 +27,55 @@ class _CartPageState extends State<CartPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    cart = List<Map<String, dynamic>>.from(
-      ModalRoute.of(context)?.settings.arguments as List<Map<String, dynamic>>? ?? [],
-    );
-    quantities = List<int>.filled(cart.length, 1);
+    // Inisialisasi sekali saja — mencegah overwrite setelah perubahan lokal (mis. setelah delete)
+    if (!_initialized) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is List<Map<String, dynamic>>) {
+        cart = List<Map<String, dynamic>>.from(args);
+      } else {
+        cart = [];
+      }
+
+      // Pastikan setiap item punya id unik
+      for (var i = 0; i < cart.length; i++) {
+        cart[i]['id'] ??= '${cart[i]['name']}_$i${DateTime.now().millisecondsSinceEpoch}';
+      }
+
+      // Inisialisasi quantities (pakai field 'quantity' jika tersedia)
+      quantities = List<int>.generate(cart.length, (i) {
+        final q = cart[i]['quantity'];
+        if (q is int && q > 0) return q;
+        return 1;
+      });
+
+      _initialized = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _discountController.dispose();
+    _namaPelangganController.dispose();
+    _uangCustomerController.dispose();
+    super.dispose();
+  }
+
+  // helper untuk menjaga quantities sesuai panjang cart
+  void _ensureQuantitiesMatch() {
+    if (quantities.length < cart.length) {
+      quantities.addAll(List<int>.filled(cart.length - quantities.length, 1));
+    } else if (quantities.length > cart.length) {
+      quantities.removeRange(cart.length, quantities.length);
+    }
   }
 
   double get totalPrice {
     double total = 0;
     for (int i = 0; i < cart.length; i++) {
-      total += (7000) * quantities[i];
+      final priceVal = cart[i]['price'] ?? 0;
+      final price = (priceVal is num) ? priceVal.toDouble() : double.tryParse(priceVal.toString()) ?? 0;
+      final qty = (i < quantities.length) ? quantities[i] : 1;
+      total += price * qty;
     }
     return total;
   }
@@ -55,6 +97,7 @@ class _CartPageState extends State<CartPage> {
 
   void _onSelesai() {
     if (cart.isEmpty) return;
+
     final transaksi = {
       'jenis': 'terjual',
       'namaPelanggan': _namaPelangganController.text,
@@ -84,6 +127,25 @@ class _CartPageState extends State<CartPage> {
       } else {
         Navigator.pushNamed(context, '/pending', arguments: transaksi);
       }
+    });
+  }
+
+  void _removeItemAt(int index) {
+    if (index < 0 || index >= cart.length) return;
+    setState(() {
+      cart.removeAt(index);
+      if (index < quantities.length) quantities.removeAt(index);
+      _ensureQuantitiesMatch();
+    });
+  }
+
+  void _updateQuantity(int index, int delta) {
+    if (index < 0 || index >= cart.length) return;
+    setState(() {
+      if (index >= quantities.length) _ensureQuantitiesMatch();
+      final newQty = (quantities[index]) + delta;
+      if (newQty < 1) return;
+      quantities[index] = newQty;
     });
   }
 
@@ -222,7 +284,9 @@ class _CartPageState extends State<CartPage> {
 
   Widget _buildCartItem(int index) {
     final item = cart[index];
+
     return Card(
+      key: ValueKey(item['id']),
       color: const Color(0xFFF1F8F5),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -236,7 +300,7 @@ class _CartPageState extends State<CartPage> {
               children: [
                 Expanded(
                   child: Text(
-                    item['name'],
+                    item['name'] ?? '-',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -247,7 +311,7 @@ class _CartPageState extends State<CartPage> {
                     DropdownButton<String>(
                       value: item['size'],
                       items: sizeOptions.map((size) => DropdownMenuItem(value: size, child: Text(size))).toList(),
-                      onChanged: (val) => setState(() => item['size'] = val!),
+                      onChanged: (val) => setState(() => item['size'] = val),
                       underline: const SizedBox(),
                       style: const TextStyle(fontSize: 13, color: Colors.black),
                       dropdownColor: Colors.white,
@@ -261,27 +325,24 @@ class _CartPageState extends State<CartPage> {
               children: [
                 Expanded(
                   child: Text(
-                    'Rp${item['price']}',
+                    'Rp${item['price'] ?? 0}',
                     style: const TextStyle(fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.remove_circle_outline),
-                  onPressed: () => setState(() => quantities[index] > 1 ? quantities[index]-- : null),
+                  onPressed: () => _updateQuantity(index, -1),
                 ),
-                Text('${quantities[index]}', style: const TextStyle(fontSize: 16)),
+                Text('${index < quantities.length ? quantities[index] : 1}', style: const TextStyle(fontSize: 16)),
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),
-                  onPressed: () => setState(() => quantities[index]++),
+                  onPressed: () => _updateQuantity(index, 1),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   tooltip: 'Hapus produk',
-                  onPressed: () => setState(() {
-                    cart.removeAt(index);
-                    quantities.removeAt(index);
-                  }),
+                  onPressed: () => _removeItemAt(index),
                 ),
               ],
             ),

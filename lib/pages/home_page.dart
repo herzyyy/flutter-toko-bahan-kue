@@ -22,9 +22,13 @@ class _HomePageState extends State<HomePage> {
   Future<List<Product>> products = ProductApi.fetchProductList();
 
   final List<String> sizeOptions = ['250g', '500g', '1kg'];
+  List<Map<String, dynamic>> originalProducts = [];
   List<Map<String, dynamic>> displayedProducts = [];
   List<Map<String, dynamic>> cart = [];
   List<int> quantities = [];
+
+  // Map untuk menyimpan ukuran yang dipilih tiap produk berdasarkan nama produk
+  Map<String, String?> selectedSizes = {};
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -59,21 +63,32 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _addToCart(Map<String, dynamic> product) {
+    final size = selectedSizes[product['name']];
+    if (size == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih ukuran terlebih dahulu')),
+      );
+      return;
+    }
+
     setState(() {
       final existingIndex = cart.indexWhere(
-        (item) => item['name'] == product['name'] && item['size'] == product['size'],
+        (item) => item['name'] == product['name'] && item['size'] == size,
       );
       if (existingIndex != -1) {
         quantities[existingIndex]++;
       } else {
         cart.add({
           'name': product['name'],
-          'size': product['size'],
+          'size': size,
           'stock': product['stock'] ?? 1,
           'price': product['price'] ?? 7000,
         });
         quantities.add(1);
       }
+
+      // Reset ukuran setelah menambah ke cart
+      selectedSizes[product['name']] = null;
     });
   }
 
@@ -84,11 +99,7 @@ class _HomePageState extends State<HomePage> {
       final unmatched = <Map<String, dynamic>>[];
 
       for (var p in allProducts) {
-        final productMap = {
-          'sku': p.sku,
-          'name': p.name,
-          'size': null,
-        };
+        final productMap = {'sku': p.sku, 'name': p.name, 'size': null};
         if (p.name.toLowerCase().contains(query.toLowerCase())) {
           matched.add(productMap);
         } else {
@@ -115,13 +126,10 @@ class _HomePageState extends State<HomePage> {
         }
 
         if (displayedProducts.isEmpty) {
-          displayedProducts = snapshot.data!
-              .map((p) => {
-                    'sku': p.sku,
-                    'name': p.name,
-                    'size': null,
-                  })
+          originalProducts = snapshot.data!
+              .map((p) => {'sku': p.sku, 'name': p.name, 'size': null})
               .toList();
+          displayedProducts = List<Map<String, dynamic>>.from(originalProducts);
         }
 
         return Padding(
@@ -136,7 +144,10 @@ class _HomePageState extends State<HomePage> {
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: Colors.grey[100],
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
@@ -147,22 +158,29 @@ class _HomePageState extends State<HomePage> {
               Expanded(
                 child: isWideScreen
                     ? GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 3.5,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 3.5,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
                         itemCount: displayedProducts.length,
                         itemBuilder: (context, index) {
-                          return _buildProductCard(displayedProducts[index], index);
+                          return _buildProductCard(
+                            displayedProducts[index],
+                            index,
+                          );
                         },
                       )
                     : ListView.separated(
                         itemCount: displayedProducts.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
-                          return _buildProductCard(displayedProducts[index], index);
+                          return _buildProductCard(
+                            displayedProducts[index],
+                            index,
+                          );
                         },
                       ),
               ),
@@ -199,7 +217,10 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF00563B).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(8),
@@ -222,22 +243,28 @@ class _HomePageState extends State<HomePage> {
                   style: TextStyle(fontSize: 14, color: Color(0xFF00563B)),
                 ),
                 DropdownButton<String>(
-                  value: product['size'],
+                  value: selectedSizes[product['name']],
                   hint: const Text(
                     'Pilih ukuran',
                     style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                   isExpanded: false,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF00563B)),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF00563B),
+                  ),
                   underline: const SizedBox(),
                   borderRadius: BorderRadius.circular(12),
                   dropdownColor: Colors.white,
                   items: sizeOptions
-                      .map((size) => DropdownMenuItem(value: size, child: Text(size)))
+                      .map(
+                        (size) =>
+                            DropdownMenuItem(value: size, child: Text(size)),
+                      )
                       .toList(),
                   onChanged: (val) {
                     setState(() {
-                      product['size'] = val;
+                      selectedSizes[product['name']] = val;
                     });
                   },
                 ),
@@ -259,7 +286,10 @@ class _HomePageState extends State<HomePage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     elevation: 2,
                   ),
                   child: const Icon(Icons.add_shopping_cart),
@@ -275,8 +305,18 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCartIcon() {
     return IconButton(
       icon: const Icon(Icons.shopping_cart, color: Colors.white),
-      onPressed: () {
-        Navigator.pushNamed(context, '/cart', arguments: cart);
+      onPressed: () async {
+        final updated = await Navigator.pushNamed(
+          context,
+          '/cart',
+          arguments: cart,
+        );
+        if (updated == true) {
+          setState(() {
+            selectedSizes
+                .clear(); // Reset ukuran terpilih semua saat kembali dari cart
+          });
+        }
       },
     );
   }
@@ -286,7 +326,9 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Row(
             children: const [
               Icon(Icons.logout, color: Color(0xFF667eea)),
@@ -337,11 +379,17 @@ class _HomePageState extends State<HomePage> {
       future: user,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         } else if (snapshot.hasError) {
-          return Scaffold(body: Center(child: Text('Terjadi kesalahan: ${snapshot.error}')));
+          return Scaffold(
+            body: Center(child: Text('Terjadi kesalahan: ${snapshot.error}')),
+          );
         } else if (!snapshot.hasData) {
-          return const Scaffold(body: Center(child: Text('Tidak ada data user')));
+          return const Scaffold(
+            body: Center(child: Text('Tidak ada data user')),
+          );
         }
 
         final currentUser = snapshot.data!;
@@ -381,7 +429,10 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(currentUser.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          currentUser.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         const Divider(),
                       ],
                     ),
@@ -415,9 +466,18 @@ class _HomePageState extends State<HomePage> {
             unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Utama'),
-              BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'Stok Masuk'),
-              BottomNavigationBarItem(icon: Icon(Icons.pending_actions), label: 'Pending'),
-              BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.inventory),
+                label: 'Stok Masuk',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.pending_actions),
+                label: 'Pending',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.history),
+                label: 'Riwayat',
+              ),
             ],
           ),
         );
