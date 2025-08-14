@@ -7,6 +7,7 @@ import 'package:flutter_toko_bahan_kue/models/user_model.dart';
 import 'stok_page.dart';
 import 'riwayat_page.dart';
 import 'pending_page.dart';
+import '../data/cart_data.dart'; // ✅ Import cart global
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -24,8 +25,6 @@ class _HomePageState extends State<HomePage> {
   final List<String> sizeOptions = ['250g', '500g', '1kg'];
   List<Map<String, dynamic>> originalProducts = [];
   List<Map<String, dynamic>> displayedProducts = [];
-  List<Map<String, dynamic>> cart = [];
-  List<int> quantities = [];
 
   // Map untuk menyimpan ukuran yang dipilih tiap produk berdasarkan nama produk
   Map<String, String?> selectedSizes = {};
@@ -72,19 +71,19 @@ class _HomePageState extends State<HomePage> {
     }
 
     setState(() {
-      final existingIndex = cart.indexWhere(
+      final existingIndex = globalCart.indexWhere(
         (item) => item['name'] == product['name'] && item['size'] == size,
       );
       if (existingIndex != -1) {
-        quantities[existingIndex]++;
+        globalQuantities[existingIndex]++;
       } else {
-        cart.add({
+        globalCart.add({
           'name': product['name'],
           'size': size,
           'stock': product['stock'] ?? 1,
           'price': product['price'] ?? 7000,
         });
-        quantities.add(1);
+        globalQuantities.add(1);
       }
 
       // Reset ukuran setelah menambah ke cart
@@ -306,15 +305,10 @@ class _HomePageState extends State<HomePage> {
     return IconButton(
       icon: const Icon(Icons.shopping_cart, color: Colors.white),
       onPressed: () async {
-        final updated = await Navigator.pushNamed(
-          context,
-          '/cart',
-          arguments: cart,
-        );
+        final updated = await Navigator.pushNamed(context, '/cart');
         if (updated == true) {
           setState(() {
-            selectedSizes
-                .clear(); // Reset ukuran terpilih semua saat kembali dari cart
+            selectedSizes.clear();
           });
         }
       },

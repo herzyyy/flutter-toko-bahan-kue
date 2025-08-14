@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/cart_data.dart'; // Impor global cart dan quantities
 
 class CartPage extends StatefulWidget {
   const CartPage({Key? key}) : super(key: key);
@@ -10,12 +11,10 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   bool _initialized = false;
 
-  late List<Map<String, dynamic>> cart = [];
-  late List<int> quantities = [];
-
   double discount = 0;
   final TextEditingController _discountController = TextEditingController();
-  final TextEditingController _namaPelangganController = TextEditingController();
+  final TextEditingController _namaPelangganController =
+      TextEditingController();
   String paymentType = 'Tunai';
   final TextEditingController _uangCustomerController = TextEditingController();
   double uangCustomer = 0;
@@ -27,26 +26,17 @@ class _CartPageState extends State<CartPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Inisialisasi sekali saja — mencegah overwrite setelah perubahan lokal (mis. setelah delete)
     if (!_initialized) {
-      final args = ModalRoute.of(context)?.settings.arguments;
-      if (args is List<Map<String, dynamic>>) {
-        cart = List<Map<String, dynamic>>.from(args);
-      } else {
-        cart = [];
+      for (var i = 0; i < globalCart.length; i++) {
+        globalCart[i]['id'] ??=
+            '${globalCart[i]['name']}_$i${DateTime.now().millisecondsSinceEpoch}';
       }
 
-      // Pastikan setiap item punya id unik
-      for (var i = 0; i < cart.length; i++) {
-        cart[i]['id'] ??= '${cart[i]['name']}_$i${DateTime.now().millisecondsSinceEpoch}';
+      if (globalQuantities.length < globalCart.length) {
+        globalQuantities.addAll(
+          List<int>.filled(globalCart.length - globalQuantities.length, 1),
+        );
       }
-
-      // Inisialisasi quantities (pakai field 'quantity' jika tersedia)
-      quantities = List<int>.generate(cart.length, (i) {
-        final q = cart[i]['quantity'];
-        if (q is int && q > 0) return q;
-        return 1;
-      });
 
       _initialized = true;
     }
@@ -60,21 +50,24 @@ class _CartPageState extends State<CartPage> {
     super.dispose();
   }
 
-  // helper untuk menjaga quantities sesuai panjang cart
   void _ensureQuantitiesMatch() {
-    if (quantities.length < cart.length) {
-      quantities.addAll(List<int>.filled(cart.length - quantities.length, 1));
-    } else if (quantities.length > cart.length) {
-      quantities.removeRange(cart.length, quantities.length);
+    if (globalQuantities.length < globalCart.length) {
+      globalQuantities.addAll(
+        List<int>.filled(globalCart.length - globalQuantities.length, 1),
+      );
+    } else if (globalQuantities.length > globalCart.length) {
+      globalQuantities.removeRange(globalCart.length, globalQuantities.length);
     }
   }
 
   double get totalPrice {
     double total = 0;
-    for (int i = 0; i < cart.length; i++) {
-      final priceVal = cart[i]['price'] ?? 0;
-      final price = (priceVal is num) ? priceVal.toDouble() : double.tryParse(priceVal.toString()) ?? 0;
-      final qty = (i < quantities.length) ? quantities[i] : 1;
+    for (int i = 0; i < globalCart.length; i++) {
+      final priceVal = globalCart[i]['price'] ?? 0;
+      final price = (priceVal is num)
+          ? priceVal.toDouble()
+          : double.tryParse(priceVal.toString()) ?? 0;
+      final qty = (i < globalQuantities.length) ? globalQuantities[i] : 1;
       total += price * qty;
     }
     return total;
@@ -96,18 +89,17 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _onSelesai() {
-    if (cart.isEmpty) return;
-
+    if (globalCart.isEmpty) return;
     final transaksi = {
       'jenis': 'terjual',
       'namaPelanggan': _namaPelangganController.text,
       'produk': [
-        for (int i = 0; i < cart.length; i++)
+        for (int i = 0; i < globalCart.length; i++)
           {
-            'name': cart[i]['name'] ?? cart[i]['nama'],
-            'size': cart[i]['size'] ?? '250g',
-            'stock': cart[i]['stock'],
-            'price': cart[i]['price'],
+            'name': globalCart[i]['name'] ?? globalCart[i]['nama'],
+            'size': globalCart[i]['size'] ?? '250g',
+            'stock': globalCart[i]['stock'],
+            'price': globalCart[i]['price'],
           },
       ],
       'total': totalPrice,
@@ -131,28 +123,27 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _removeItemAt(int index) {
-    if (index < 0 || index >= cart.length) return;
+    if (index < 0 || index >= globalCart.length) return;
     setState(() {
-      cart.removeAt(index);
-      if (index < quantities.length) quantities.removeAt(index);
+      globalCart.removeAt(index);
+      if (index < globalQuantities.length) globalQuantities.removeAt(index);
       _ensureQuantitiesMatch();
     });
   }
 
   void _updateQuantity(int index, int delta) {
-    if (index < 0 || index >= cart.length) return;
+    if (index < 0 || index >= globalCart.length) return;
     setState(() {
-      if (index >= quantities.length) _ensureQuantitiesMatch();
-      final newQty = (quantities[index]) + delta;
+      if (index >= globalQuantities.length) _ensureQuantitiesMatch();
+      final newQty = globalQuantities[index] + delta;
       if (newQty < 1) return;
-      quantities[index] = newQty;
+      globalQuantities[index] = newQty;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF00563B);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Keranjang', style: TextStyle(color: Colors.white)),
@@ -166,8 +157,11 @@ class _CartPageState extends State<CartPage> {
           double horizontalPadding = constraints.maxWidth > 600 ? 64 : 16;
 
           return Padding(
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16),
-            child: cart.isEmpty
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 16,
+            ),
+            child: globalCart.isEmpty
                 ? const Center(child: Text('Keranjang kosong'))
                 : SingleChildScrollView(
                     child: Column(
@@ -184,9 +178,11 @@ class _CartPageState extends State<CartPage> {
                         ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: cart.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) => _buildCartItem(index),
+                          itemCount: globalCart.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) =>
+                              _buildCartItem(index),
                         ),
                         const SizedBox(height: 24),
 
@@ -204,9 +200,13 @@ class _CartPageState extends State<CartPage> {
                         const SizedBox(height: 24),
 
                         _buildSectionTitle('Jenis Pembayaran'),
-                        _buildRadioOptions(['Tunai', 'Non Tunai'], paymentType, (val) {
-                          setState(() => paymentType = val);
-                        }),
+                        _buildRadioOptions(
+                          ['Tunai', 'Non Tunai'],
+                          paymentType,
+                          (val) {
+                            setState(() => paymentType = val);
+                          },
+                        ),
                         const SizedBox(height: 16),
 
                         _buildSectionTitle('Jumlah Uang dari Customer'),
@@ -220,13 +220,21 @@ class _CartPageState extends State<CartPage> {
                         const SizedBox(height: 12),
 
                         if (paymentType == 'Tunai')
-                          _buildSummaryRow('Kembalian', 'Rp${kembalian.toStringAsFixed(0)}', highlight: true),
+                          _buildSummaryRow(
+                            'Kembalian',
+                            'Rp${kembalian.toStringAsFixed(0)}',
+                            highlight: true,
+                          ),
                         const SizedBox(height: 24),
 
                         _buildSectionTitle('Status Pembayaran'),
-                        _buildRadioOptions(['complete', 'pending'], paymentStatus, (val) {
-                          setState(() => paymentStatus = val);
-                        }),
+                        _buildRadioOptions(
+                          ['complete', 'pending'],
+                          paymentStatus,
+                          (val) {
+                            setState(() => paymentStatus = val);
+                          },
+                        ),
                         const SizedBox(height: 24),
 
                         SizedBox(
@@ -242,7 +250,10 @@ class _CartPageState extends State<CartPage> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                         ),
@@ -276,15 +287,17 @@ class _CartPageState extends State<CartPage> {
         hintText: hintText,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         prefixIcon: Icon(icon),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
       ),
       onChanged: onChanged,
     );
   }
 
   Widget _buildCartItem(int index) {
-    final item = cart[index];
-
+    final item = globalCart[index];
     return Card(
       key: ValueKey(item['id']),
       color: const Color(0xFFF1F8F5),
@@ -301,7 +314,10 @@ class _CartPageState extends State<CartPage> {
                 Expanded(
                   child: Text(
                     item['name'] ?? '-',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -310,7 +326,14 @@ class _CartPageState extends State<CartPage> {
                     const Text('Ukuran: ', style: TextStyle(fontSize: 13)),
                     DropdownButton<String>(
                       value: item['size'],
-                      items: sizeOptions.map((size) => DropdownMenuItem(value: size, child: Text(size))).toList(),
+                      items: sizeOptions
+                          .map(
+                            (size) => DropdownMenuItem(
+                              value: size,
+                              child: Text(size),
+                            ),
+                          )
+                          .toList(),
                       onChanged: (val) => setState(() => item['size'] = val),
                       underline: const SizedBox(),
                       style: const TextStyle(fontSize: 13, color: Colors.black),
@@ -334,7 +357,10 @@ class _CartPageState extends State<CartPage> {
                   icon: const Icon(Icons.remove_circle_outline),
                   onPressed: () => _updateQuantity(index, -1),
                 ),
-                Text('${index < quantities.length ? quantities[index] : 1}', style: const TextStyle(fontSize: 16)),
+                Text(
+                  '${index < globalQuantities.length ? globalQuantities[index] : 1}',
+                  style: const TextStyle(fontSize: 16),
+                ),
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),
                   onPressed: () => _updateQuantity(index, 1),
@@ -363,14 +389,22 @@ class _CartPageState extends State<CartPage> {
             _buildSummaryRow('Total', 'Rp${totalPrice.toStringAsFixed(0)}'),
             _buildSummaryRow('Potongan', '- Rp${discount.toStringAsFixed(0)}'),
             const Divider(),
-            _buildSummaryRow('Total Akhir', 'Rp${finalPrice.toStringAsFixed(0)}', highlight: true),
+            _buildSummaryRow(
+              'Total Akhir',
+              'Rp${finalPrice.toStringAsFixed(0)}',
+              highlight: true,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, {bool highlight = false}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value, {
+    bool highlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -396,7 +430,11 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  Widget _buildRadioOptions(List<String> options, String groupValue, Function(String) onChanged) {
+  Widget _buildRadioOptions(
+    List<String> options,
+    String groupValue,
+    Function(String) onChanged,
+  ) {
     return Wrap(
       spacing: 16,
       children: options
