@@ -14,7 +14,11 @@ class _StokPageState extends State<StokPage> {
   String? selectedDistributor;
 
   final List<String> ukuranList = ['250ml', '500ml', '1L'];
-  final List<String> distributorList = ['Distributor A', 'Distributor B', 'Distributor C'];
+  final List<String> distributorList = [
+    'Distributor A',
+    'Distributor B',
+    'Distributor C',
+  ];
 
   List<Map<String, dynamic>> produkStokList = [];
   final TextEditingController _produkSearchController = TextEditingController();
@@ -62,13 +66,15 @@ class _StokPageState extends State<StokPage> {
 
     List<Map<String, dynamic>> produkMasuk = produkStokList
         .where((p) => p['stock'] > 0)
-        .map((p) => {
-              'sku': p['sku'],
-              'name': p['name'],
-              'size': p['size'],
-              'stock': p['stock'],
-              'price': p['price'],
-            })
+        .map(
+          (p) => {
+            'sku': p['sku'],
+            'name': p['name'],
+            'size': p['size'],
+            'stock': p['stock'],
+            'price': p['price'],
+          },
+        )
         .toList();
 
     if (produkMasuk.isEmpty) {
@@ -163,7 +169,10 @@ class _StokPageState extends State<StokPage> {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
                                   onPressed: () {
                                     setState(() {
                                       produkStokList.removeAt(i);
@@ -189,10 +198,12 @@ class _StokPageState extends State<StokPage> {
                               ),
                               hint: const Text('Pilih ukuran'),
                               items: ukuranList
-                                  .map((ukuran) => DropdownMenuItem(
-                                        value: ukuran,
-                                        child: Text(ukuran),
-                                      ))
+                                  .map(
+                                    (ukuran) => DropdownMenuItem(
+                                      value: ukuran,
+                                      child: Text(ukuran),
+                                    ),
+                                  )
                                   .toList(),
                               onChanged: (val) {
                                 setState(() {
@@ -205,12 +216,14 @@ class _StokPageState extends State<StokPage> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text('Harga'),
                                       const SizedBox(height: 4),
                                       TextFormField(
-                                        initialValue: produk['price']?.toString() ?? '',
+                                        initialValue:
+                                            produk['price']?.toString() ?? '',
                                         keyboardType: TextInputType.number,
                                         decoration: InputDecoration(
                                           prefixText: 'Rp ',
@@ -218,12 +231,15 @@ class _StokPageState extends State<StokPage> {
                                           filled: true,
                                           fillColor: Colors.white,
                                           border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                           ),
                                         ),
                                         onChanged: (val) {
                                           setState(() {
-                                            produk['price'] = int.tryParse(val) ?? 0;
+                                            produk['price'] =
+                                                int.tryParse(val) ?? 0;
                                           });
                                         },
                                       ),
@@ -233,24 +249,29 @@ class _StokPageState extends State<StokPage> {
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text('Stok'),
                                       const SizedBox(height: 4),
                                       TextFormField(
-                                        initialValue: produk['stock'].toString(),
+                                        initialValue: produk['stock']
+                                            .toString(),
                                         keyboardType: TextInputType.number,
                                         decoration: InputDecoration(
                                           hintText: '0',
                                           filled: true,
                                           fillColor: Colors.white,
                                           border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                           ),
                                         ),
                                         onChanged: (val) {
                                           setState(() {
-                                            produk['stock'] = int.tryParse(val) ?? 0;
+                                            produk['stock'] =
+                                                int.tryParse(val) ?? 0;
                                           });
                                         },
                                       ),

@@ -22,9 +22,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<List<Product>> products = ProductApi.fetchProductList();
 
-  final List<String> sizeOptions = ['250g', '500g', '1kg'];
-  List<Map<String, dynamic>> originalProducts = [];
-  List<Map<String, dynamic>> displayedProducts = [];
+  // final List<String> sizeOptions = ['250g', '500g', '1kg'];
+  List<Product> originalProducts = [];
+  List<Product> displayedProducts = [];
 
   // Map untuk menyimpan ukuran yang dipilih tiap produk berdasarkan nama produk
   Map<String, String?> selectedSizes = {};
@@ -61,52 +61,50 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _addToCart(Map<String, dynamic> product) {
-    final size = selectedSizes[product['name']];
-    if (size == null) {
+  void _addToCart(Product product) {
+    final sizeId = selectedSizes[product.sku];
+    if (sizeId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pilih ukuran terlebih dahulu')),
       );
       return;
     }
 
+    final size = product.sizes.firstWhere((s) => s.id.toString() == sizeId);
+
     setState(() {
       final existingIndex = globalCart.indexWhere(
-        (item) => item['name'] == product['name'] && item['size'] == size,
+        (item) => item['sku'] == product.sku && item['size_id'] == size.id,
       );
+
       if (existingIndex != -1) {
         globalQuantities[existingIndex]++;
       } else {
         globalCart.add({
-          'name': product['name'],
-          'size': size,
-          'stock': product['stock'] ?? 1,
-          'price': product['price'] ?? 7000,
+          'sku': product.sku,
+          'name': product.name,
+          'size_id': size.id,
+          'size_name': size.name,
+          'stock': size.stock,
+          'price': size.sellPrice,
         });
         globalQuantities.add(1);
       }
 
-      // Reset ukuran setelah menambah ke cart
-      selectedSizes[product['name']] = null;
+      selectedSizes[product.sku] = null;
     });
   }
 
   void _filterProducts(String query) async {
     final allProducts = await products;
     setState(() {
-      final matched = <Map<String, dynamic>>[];
-      final unmatched = <Map<String, dynamic>>[];
-
-      for (var p in allProducts) {
-        final productMap = {'sku': p.sku, 'name': p.name, 'size': null};
-        if (p.name.toLowerCase().contains(query.toLowerCase())) {
-          matched.add(productMap);
-        } else {
-          unmatched.add(productMap);
-        }
+      if (query.isEmpty) {
+        displayedProducts = allProducts;
+      } else {
+        displayedProducts = allProducts
+            .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
+            .toList();
       }
-
-      displayedProducts = [...matched, ...unmatched];
     });
   }
 
@@ -125,10 +123,8 @@ class _HomePageState extends State<HomePage> {
         }
 
         if (displayedProducts.isEmpty) {
-          originalProducts = snapshot.data!
-              .map((p) => {'sku': p.sku, 'name': p.name, 'size': null})
-              .toList();
-          displayedProducts = List<Map<String, dynamic>>.from(originalProducts);
+          originalProducts = snapshot.data!;
+          displayedProducts = List<Product>.from(originalProducts);
         }
 
         return Padding(
@@ -190,7 +186,15 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> product, int index) {
+  Widget _buildProductCard(Product product, int index) {
+    final selectedSizeId = selectedSizes[product.sku];
+    final selectedSize = selectedSizeId == null
+        ? null
+        : product.sizes.firstWhere(
+            (s) => s.id.toString() == selectedSizeId,
+            orElse: () => product.sizes.first,
+          );
+
     return Card(
       elevation: 6,
       color: const Color(0xFFF1F8F5),
@@ -201,82 +205,68 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    product['name'],
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF00563B),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00563B).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Stok: 1',
-                    style: TextStyle(
-                      color: Color(0xFF00563B),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
+            // --- Nama produk
+            Text(
+              product.name,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF00563B),
+              ),
             ),
+
             const SizedBox(height: 12),
+
+            // --- Dropdown ukuran + stok + harga
             Row(
               children: [
-                const Text(
-                  'Ukuran : ',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF00563B)),
-                ),
                 DropdownButton<String>(
-                  value: selectedSizes[product['name']],
-                  hint: const Text(
-                    'Pilih ukuran',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  isExpanded: false,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF00563B),
-                  ),
-                  underline: const SizedBox(),
-                  borderRadius: BorderRadius.circular(12),
-                  dropdownColor: Colors.white,
-                  items: sizeOptions
+                  value: selectedSizeId,
+                  hint: const Text('Pilih ukuran'),
+                  items: product.sizes
                       .map(
-                        (size) =>
-                            DropdownMenuItem(value: size, child: Text(size)),
+                        (size) => DropdownMenuItem<String>(
+                          value: size.id.toString(),
+                          child: Text(size.name),
+                        ),
                       )
                       .toList(),
                   onChanged: (val) {
                     setState(() {
-                      selectedSizes[product['name']] = val;
+                      selectedSizes[product.sku] = val;
                     });
                   },
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Rp. 7000',
-                  style: TextStyle(
-                    color: Color(0xFF00563B),
+
+                // Stok
+                if (selectedSize != null)
+                  Text(
+                    'Stok: ${selectedSize.stock}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF00563B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                const Spacer(),
+
+                // Harga
+                Text(
+                  selectedSize != null
+                      ? 'Rp ${selectedSize.sellPrice}'
+                      : 'Rp -',
+                  style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF00563B),
                   ),
                 ),
-                const Spacer(),
+
+                const SizedBox(width: 12),
+
+                // Tombol tambah
                 ElevatedButton(
                   onPressed: () => _addToCart(product),
                   style: ElevatedButton.styleFrom(
@@ -285,11 +275,6 @@ class _HomePageState extends State<HomePage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    elevation: 2,
                   ),
                   child: const Icon(Icons.add_shopping_cart),
                 ),

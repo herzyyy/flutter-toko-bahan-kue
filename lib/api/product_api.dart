@@ -11,12 +11,13 @@ class ProductApi {
     final token = await AuthService.getToken();
 
     final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/products'),
+      Uri.parse('$baseUrl/api/v1/branch-inventory'),
       headers: {
         'ngrok-skip-browser-warning': 'true',
         'Authorization': token.toString(),
       },
     );
+
     if (response.statusCode == 200) {
       final Map<String, dynamic> jsonResponse = json.decode(response.body);
 
