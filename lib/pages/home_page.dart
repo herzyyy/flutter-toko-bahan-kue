@@ -87,6 +87,7 @@ class _HomePageState extends State<HomePage> {
           'size_name': size.name,
           'stock': size.stock,
           'price': size.sellPrice,
+          'sizes': product.sizes, // ✅ simpan list ukuran
         });
         globalQuantities.add(1);
       }

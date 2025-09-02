@@ -1,17 +1,17 @@
 import 'package:flutter_toko_bahan_kue/helper/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/product_model.dart';
+import '../models/distributor_model.dart';
 
-class ProductApi {
+class DistributorApi {
   static const String baseUrl =
-      'https://top-gibbon-engaged.ngrok-free.app'; // Ganti dengan URL API Anda
+      'https://top-gibbon-engaged.ngrok-free.app'; // ganti sesuai API
 
-  static Future<List<Product>> fetchProductList() async {
+  static Future<List<Distributor>> fetchDistributorList() async {
     final token = await AuthService.getToken();
 
     final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/branch-inventory'),
+      Uri.parse('$baseUrl/api/v1/distributors'),
       headers: {
         'ngrok-skip-browser-warning': 'true',
         'Authorization': token.toString(),
@@ -20,12 +20,11 @@ class ProductApi {
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> jsonResponse = json.decode(response.body);
-
       final List<dynamic> data = jsonResponse['data'];
 
-      return data.map((e) => Product.fromJson(e)).toList();
+      return data.map((e) => Distributor.fromJson(e)).toList();
     } else {
-      throw Exception('Gagal memuat produk');
+      throw Exception('Gagal memuat distributor');
     }
   }
 }

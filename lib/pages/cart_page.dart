@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/cart_data.dart'; // Impor global cart dan quantities
+import 'package:flutter_toko_bahan_kue/models/size_model.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({Key? key}) : super(key: key);
@@ -324,20 +325,29 @@ class _CartPageState extends State<CartPage> {
                 Row(
                   children: [
                     const Text('Ukuran: ', style: TextStyle(fontSize: 13)),
-                    DropdownButton<String>(
-                      value: item['size'],
-                      items: sizeOptions
-                          .map(
-                            (size) => DropdownMenuItem(
-                              value: size,
-                              child: Text(size),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (val) => setState(() => item['size'] = val),
-                      underline: const SizedBox(),
-                      style: const TextStyle(fontSize: 13, color: Colors.black),
-                      dropdownColor: Colors.white,
+                    DropdownButton<int>(
+                      value: item['size_id'],
+                      items: (item['sizes'] as List).map((s) {
+                        final size = s as Size; // import model Size
+                        return DropdownMenuItem<int>(
+                          value: size.id,
+                          child: Text(size.name),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val == null) return;
+                        setState(() {
+                          final newSize =
+                              (item['sizes'] as List).firstWhere(
+                                    (s) => (s as Size).id == val,
+                                  )
+                                  as Size;
+                          item['size_id'] = newSize.id;
+                          item['size_name'] = newSize.name;
+                          item['stock'] = newSize.stock;
+                          item['price'] = newSize.sellPrice;
+                        });
+                      },
                     ),
                   ],
                 ),
