@@ -91,7 +91,7 @@ class _ProfilPageState extends State<ProfilPage> {
 
         final user = snapshot.data!;
         _namaController.text = user.name;
-        _alamatController.text = user.address ?? '';
+        _alamatController.text = user.address;
 
         return Scaffold(
           appBar: AppBar(
