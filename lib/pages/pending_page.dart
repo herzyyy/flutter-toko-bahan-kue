@@ -103,6 +103,7 @@ class PendingPage extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: const Text(
             'Transaksi',
             style: TextStyle(

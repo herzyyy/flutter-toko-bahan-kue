@@ -7,7 +7,7 @@ import 'package:flutter_toko_bahan_kue/models/user_model.dart';
 import 'stok_page.dart';
 import 'sale_page.dart';
 import 'pending_page.dart';
-import '../data/cart_data.dart'; // ✅ Import cart global
+import '../data/cart_data.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -19,16 +19,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   late PageController _pageController;
-
-  Future<List<Product>> products = ProductApi.fetchProductList();
-
-  // final List<String> sizeOptions = ['250g', '500g', '1kg'];
+  Future<List<Product>> products = ProductApi.fetchProductList("");
   List<Product> originalProducts = [];
   List<Product> displayedProducts = [];
-
-  // Map untuk menyimpan ukuran yang dipilih tiap produk berdasarkan nama produk
   Map<String, String?> selectedSizes = {};
-
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -70,7 +64,10 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    final size = product.sizes.firstWhere((s) => s.id.toString() == sizeId);
+    final size = product.sizes.firstWhere(
+      (s) => s.id.toString() == sizeId,
+      orElse: () => product.sizes.first,
+    );
 
     setState(() {
       final existingIndex = globalCart.indexWhere(
@@ -87,26 +84,32 @@ class _HomePageState extends State<HomePage> {
           'size_name': size.name,
           'stock': size.stock,
           'price': size.sellPrice,
-          'sizes': product.sizes, // ✅ simpan list ukuran
+          'sizes': product.sizes,
         });
         globalQuantities.add(1);
       }
-
       selectedSizes[product.sku] = null;
     });
   }
 
   void _filterProducts(String query) async {
-    final allProducts = await products;
-    setState(() {
-      if (query.isEmpty) {
-        displayedProducts = allProducts;
-      } else {
-        displayedProducts = allProducts
-            .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
-            .toList();
+    if (query.isNotEmpty) {
+      try {
+        final filteredProducts = await ProductApi.fetchProductList(query);
+        setState(() {
+          displayedProducts = filteredProducts;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal mencari produk: $e')));
       }
-    });
+    } else {
+      final allProducts = await products;
+      setState(() {
+        displayedProducts = allProducts;
+      });
+    }
   }
 
   Widget _buildProductList(BuildContext context) {
@@ -132,22 +135,46 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              TextField(
-                controller: _searchController,
-                onChanged: _filterProducts,
-                decoration: InputDecoration(
-                  hintText: 'Cari produk...',
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _filterProducts,
+                  decoration: InputDecoration(
+                    hintText: 'Cari produk...',
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: Color(0xFF00563B),
+                    ),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(
+                              Icons.clear,
+                              color: Color(0xFF00563B),
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterProducts('');
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
+                  style: const TextStyle(fontSize: 16),
                 ),
               ),
               const SizedBox(height: 16),
@@ -197,47 +224,51 @@ class _HomePageState extends State<HomePage> {
           );
 
     return Card(
-      elevation: 6,
-      color: const Color(0xFFF1F8F5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      elevation: 4,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Nama produk
+            // Nama produk
             Text(
               product.name,
               style: const TextStyle(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF00563B),
               ),
             ),
-
             const SizedBox(height: 12),
 
-            // --- Dropdown ukuran + stok + harga
+            // Informasi produk
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                DropdownButton<String>(
-                  value: selectedSizeId,
-                  hint: const Text('Pilih ukuran'),
-                  items: product.sizes
-                      .map(
-                        (size) => DropdownMenuItem<String>(
-                          value: size.id.toString(),
-                          child: Text(size.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      selectedSizes[product.sku] = val;
-                    });
-                  },
+                // Dropdown ukuran
+                Expanded(
+                  flex: 2,
+                  child: DropdownButton<String>(
+                    value: selectedSizeId,
+                    hint: const Text('Pilih ukuran'),
+                    items: product.sizes.map((size) {
+                      return DropdownMenuItem<String>(
+                        value: size.id.toString(),
+                        child: Text(size.name),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        selectedSizes[product.sku] = val;
+                      });
+                    },
+                    isExpanded: true,
+                  ),
                 ),
+
                 const SizedBox(width: 12),
 
                 // Stok
@@ -245,7 +276,7 @@ class _HomePageState extends State<HomePage> {
                   Text(
                     'Stok: ${selectedSize.stock}',
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       color: Color(0xFF00563B),
                       fontWeight: FontWeight.w600,
                     ),
@@ -273,11 +304,12 @@ class _HomePageState extends State<HomePage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00563B),
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Icon(Icons.add_shopping_cart),
+                  child: const Icon(Icons.add_shopping_cart, size: 20),
                 ),
               ],
             ),
@@ -288,16 +320,37 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCartIcon() {
-    return IconButton(
-      icon: const Icon(Icons.shopping_cart, color: Colors.white),
-      onPressed: () async {
-        final updated = await Navigator.pushNamed(context, '/cart');
-        if (updated == true) {
-          setState(() {
-            selectedSizes.clear();
-          });
-        }
-      },
+    return Stack(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.shopping_cart, color: Colors.white),
+          onPressed: () async {
+            final updated = await Navigator.pushNamed(context, '/cart');
+            if (updated == true) {
+              setState(() {
+                selectedSizes.clear();
+              });
+            }
+          },
+        ),
+        if (globalCart.isNotEmpty)
+          Positioned(
+            right: 5,
+            top: 5,
+            child: CircleAvatar(
+              radius: 10,
+              backgroundColor: Colors.red,
+              child: Text(
+                '${globalCart.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -344,7 +397,6 @@ class _HomePageState extends State<HomePage> {
       } catch (e) {
         debugPrint('Logout gagal ke server: $e');
       }
-
       await AuthService.clearToken();
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/');
@@ -376,6 +428,7 @@ class _HomePageState extends State<HomePage> {
 
         return Scaffold(
           appBar: AppBar(
+            automaticallyImplyLeading: false,
             backgroundColor: const Color(0xFF00563B),
             elevation: 3,
             titleSpacing: 16,
@@ -387,7 +440,7 @@ class _HomePageState extends State<HomePage> {
                   'Toko Azka',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 20,
+                    fontSize: 22,
                     color: Colors.white,
                   ),
                 ),

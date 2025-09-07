@@ -311,16 +311,22 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
       );
     }
 
-    return _buildCardSection(
-      title: "Pembayaran",
-      children: payments.map((p) => _buildPaymentItem(p)).toList(),
-    );
+    // Buat list item pembayaran tanpa margin bawah pada item terakhir
+    List<Widget> paymentItems = [];
+    for (int i = 0; i < payments.length; i++) {
+      paymentItems.add(_buildPaymentItem(payments[i]));
+      if (i < payments.length - 1) {
+        paymentItems.add(const SizedBox(height: 12));
+      }
+    }
+
+    return _buildCardSection(title: "Pembayaran", children: paymentItems);
   }
 
   Widget _buildPaymentItem(Payment payment) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      width: double.infinity, // Lebar penuh
+      padding: const EdgeInsets.all(16), // Padding internal
       decoration: BoxDecoration(
         border: Border.all(color: const Color(0xFFE0E0E0)),
         borderRadius: BorderRadius.circular(8),

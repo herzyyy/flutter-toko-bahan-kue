@@ -24,7 +24,7 @@ class _StokPageState extends State<StokPage> {
   @override
   void initState() {
     super.initState();
-    products = ProductApi.fetchProductList();
+    products = ProductApi.fetchProductList("");
     distributors = DistributorApi.fetchDistributorList();
   }
 
@@ -50,6 +50,7 @@ class _StokPageState extends State<StokPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Tambah Stok'),
         backgroundColor: const Color(0xFF00563B),
         foregroundColor: Colors.white,

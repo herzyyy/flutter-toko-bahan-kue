@@ -108,11 +108,15 @@ class _SalePageState extends State<SalePage>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "Kode: ${sale.code}",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          Flexible(
+                            child: Text(
+                              "Kode: ${sale.code}",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                           Text(
@@ -124,6 +128,7 @@ class _SalePageState extends State<SalePage>
                           ),
                         ],
                       ),
+
                       const SizedBox(height: 8),
 
                       Text(
@@ -259,9 +264,10 @@ class _SalePageState extends State<SalePage>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFFF1F8E9),
         title: const Text(
-          "Transaksi Penjualan & Pembelian",
+          "Riwayat Transaksi",
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
