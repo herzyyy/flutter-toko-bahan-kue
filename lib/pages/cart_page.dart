@@ -116,7 +116,7 @@ class _CartPageState extends State<CartPage> {
     Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     Future.delayed(const Duration(milliseconds: 300), () {
       if (paymentStatus == 'complete') {
-        Navigator.pushNamed(context, '/riwayat', arguments: transaksi);
+        Navigator.pushNamed(context, '/sale', arguments: transaksi);
       } else {
         Navigator.pushNamed(context, '/pending', arguments: transaksi);
       }

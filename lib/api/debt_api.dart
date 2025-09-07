@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_toko_bahan_kue/helper/auth_service.dart';
+import 'package:flutter_toko_bahan_kue/models/debt_detail_model.dart';
 import 'package:http/http.dart' as http;
 import '../models/debt_model.dart';
 
@@ -26,6 +27,31 @@ class DebtApi {
       return list.map((e) => Debt.fromJson(e)).toList();
     } else {
       throw Exception("Failed to load debts: ${response.statusCode}");
+    }
+  }
+
+  static Future<DebtDetail> getDebtDetail(int debtId) async {
+    final token = await AuthService.getToken();
+
+    final url = Uri.parse('$baseUrl/api/v1/debt/$debtId');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+          'Authorization': token.toString(),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return DebtDetail.fromJson(jsonData['data']);
+      } else {
+        throw Exception('Gagal memuat data utang: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
     }
   }
 }

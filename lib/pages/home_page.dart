@@ -5,7 +5,7 @@ import 'package:flutter_toko_bahan_kue/helper/auth_service.dart';
 import 'package:flutter_toko_bahan_kue/models/product_model.dart';
 import 'package:flutter_toko_bahan_kue/models/user_model.dart';
 import 'stok_page.dart';
-import 'riwayat_page.dart';
+import 'sale_page.dart';
 import 'pending_page.dart';
 import '../data/cart_data.dart'; // ✅ Import cart global
 
@@ -432,7 +432,7 @@ class _HomePageState extends State<HomePage> {
               _buildProductList(context),
               const StokPage(),
               const PendingPage(),
-              const RiwayatPage(),
+              const SalePage(),
             ],
           ),
           bottomNavigationBar: BottomNavigationBar(

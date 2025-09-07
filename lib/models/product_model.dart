@@ -16,8 +16,8 @@ class Product {
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
-      sku: json['product_sku'],
-      name: json['product_name'],
+      sku: json['sku'],
+      name: json['name'],
       // category: Category.fromJson(json['category']),
       sizes: (json['sizes'] as List<dynamic>)
           .map((e) => Size.fromJson(e))

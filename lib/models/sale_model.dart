@@ -1,11 +1,11 @@
-class SaleHistory {
+class Sale {
   final String code;
   final String customerName;
   final String status;
   final DateTime createdAt;
   final int branchId;
 
-  SaleHistory({
+  Sale({
     required this.code,
     required this.customerName,
     required this.status,
@@ -13,8 +13,8 @@ class SaleHistory {
     required this.branchId,
   });
 
-  factory SaleHistory.fromJson(Map<String, dynamic> json) {
-    return SaleHistory(
+  factory Sale.fromJson(Map<String, dynamic> json) {
+    return Sale(
       code: json['code'] ?? '',
       customerName: json['customer_name'] ?? '',
       status: json['status'] ?? '',
@@ -24,7 +24,7 @@ class SaleHistory {
   }
 }
 
-class PurchaseHistory {
+class Purchase {
   final String code;
   final String salesName;
   final String distributorName;
@@ -32,7 +32,7 @@ class PurchaseHistory {
   final DateTime createdAt;
   final int branchId;
 
-  PurchaseHistory({
+  Purchase({
     required this.code,
     required this.salesName,
     required this.distributorName,
@@ -41,8 +41,8 @@ class PurchaseHistory {
     required this.branchId,
   });
 
-  factory PurchaseHistory.fromJson(Map<String, dynamic> json) {
-    return PurchaseHistory(
+  factory Purchase.fromJson(Map<String, dynamic> json) {
+    return Purchase(
       code: json['code'] ?? '',
       salesName: json['sales_name'] ?? '',
       distributorName: json['distributor_name'] ?? '',
