@@ -16,7 +16,7 @@ class PendingPage extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PendingDetailScreen(debtId: transaksi.id),
+            builder: (context) => PendingDetailPage(debtId: transaksi.id),
           ),
         );
       },
@@ -66,8 +66,6 @@ class PendingPage extends StatelessWidget {
   }
 
   Widget _buildList(Future<List<Debt>> future, String status) {
-    const Color highlight = Color(0xFF00563B);
-    const Color cardColor = Color(0xFFF1F8F5);
     const Color textMain = Color(0xFF222222);
     return FutureBuilder<List<Debt>>(
       future: future,

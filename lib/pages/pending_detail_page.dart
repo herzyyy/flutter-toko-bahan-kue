@@ -4,18 +4,17 @@ import 'package:flutter_toko_bahan_kue/api/debt_api.dart';
 import 'package:flutter_toko_bahan_kue/models/debt_detail_model.dart';
 import 'package:intl/intl.dart';
 
-class PendingDetailScreen extends StatefulWidget {
+class PendingDetailPage extends StatefulWidget {
   final int debtId;
 
-  const PendingDetailScreen({Key? key, required this.debtId}) : super(key: key);
+  const PendingDetailPage({Key? key, required this.debtId}) : super(key: key);
 
   @override
-  _PendingDetailScreenState createState() => _PendingDetailScreenState();
+  State<PendingDetailPage> createState() => _PendingDetailPageState();
 }
 
-class _PendingDetailScreenState extends State<PendingDetailScreen> {
+class _PendingDetailPageState extends State<PendingDetailPage> {
   late Future<DebtDetail> _debtFuture;
-  bool _isLoading = true;
 
   @override
   void initState() {
