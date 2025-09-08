@@ -341,7 +341,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
           Text(
             "Nominal: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(payment.amount)}",
           ),
-          Text("Catatan: ${payment.note}"),
+          Text("Catatan:  ${payment.note ?? '-'}"),
           Text(
             "Tanggal: ${DateFormat('dd MMM yyyy HH:mm').format(payment.createdAt)}",
             style: TextStyle(color: Colors.grey[600], fontSize: 12),

@@ -69,13 +69,13 @@ class Item {
 class Payment {
   final String method;
   final int amount;
-  final String note;
+  final String? note;
   final DateTime createdAt;
 
   Payment({
     required this.method,
     required this.amount,
-    required this.note,
+    this.note,
     required this.createdAt,
   });
 
