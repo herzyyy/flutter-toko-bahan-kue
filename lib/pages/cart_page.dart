@@ -1,468 +1,744 @@
 import 'package:flutter/material.dart';
-import '../data/cart_data.dart'; // Impor global cart dan quantities
-import 'package:flutter_toko_bahan_kue/models/size_model.dart';
+import 'package:flutter_toko_bahan_kue/api/sale_api.dart';
+import 'package:flutter_toko_bahan_kue/data/cart_data.dart';
+import 'package:flutter_toko_bahan_kue/models/sale_create_model.dart';
+import '../models/size_model.dart';
 
-class CartPage extends StatefulWidget {
-  const CartPage({Key? key}) : super(key: key);
+class CheckoutPage extends StatefulWidget {
+  const CheckoutPage({super.key});
 
   @override
-  State<CartPage> createState() => _CartPageState();
+  State<CheckoutPage> createState() => _CheckoutPageState();
 }
 
-class _CartPageState extends State<CartPage> {
-  bool _initialized = false;
-
-  double discount = 0;
-  final TextEditingController _discountController = TextEditingController();
-  final TextEditingController _namaPelangganController =
+class _CheckoutPageState extends State<CheckoutPage> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _customerNameController = TextEditingController();
+  final TextEditingController _paymentAmountController =
+      TextEditingController(); // Ubah nama controller
+  final TextEditingController _paymentNoteController =
+      TextEditingController(); // Tambah controller baru
+  final TextEditingController _debtAmountController = TextEditingController();
+  final TextEditingController _debtDueDateController = TextEditingController();
+  final TextEditingController _paymentMethodController =
       TextEditingController();
-  String paymentType = 'Tunai';
-  final TextEditingController _uangCustomerController = TextEditingController();
-  double uangCustomer = 0;
-  double kembalian = 0;
-  String paymentStatus = 'complete';
 
-  final List<String> sizeOptions = ['250g', '500g', '1kg'];
+  bool _isDebtMode = false;
+  bool _isAddingPayment = false;
+  List<Map<String, dynamic>> _payments = [];
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_initialized) {
-      for (var i = 0; i < globalCart.length; i++) {
-        globalCart[i]['id'] ??=
-            '${globalCart[i]['name']}_$i${DateTime.now().millisecondsSinceEpoch}';
-      }
-
-      if (globalQuantities.length < globalCart.length) {
-        globalQuantities.addAll(
-          List<int>.filled(globalCart.length - globalQuantities.length, 1),
-        );
-      }
-
-      _initialized = true;
-    }
+  void initState() {
+    super.initState();
+    _customerNameController.text = '';
+    _paymentMethodController.text = 'TRANSFER';
   }
 
-  @override
-  void dispose() {
-    _discountController.dispose();
-    _namaPelangganController.dispose();
-    _uangCustomerController.dispose();
-    super.dispose();
+  void _addPayment() {
+    setState(() {
+      _isAddingPayment = true;
+    });
   }
 
-  void _ensureQuantitiesMatch() {
-    if (globalQuantities.length < globalCart.length) {
-      globalQuantities.addAll(
-        List<int>.filled(globalCart.length - globalQuantities.length, 1),
+  void _savePayment() {
+    if (_paymentAmountController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Masukkan nominal pembayaran')),
       );
-    } else if (globalQuantities.length > globalCart.length) {
-      globalQuantities.removeRange(globalCart.length, globalQuantities.length);
+      return;
     }
-  }
 
-  double get totalPrice {
-    double total = 0;
-    for (int i = 0; i < globalCart.length; i++) {
-      final priceVal = globalCart[i]['price'] ?? 0;
-      final price = (priceVal is num)
-          ? priceVal.toDouble()
-          : double.tryParse(priceVal.toString()) ?? 0;
-      final qty = (i < globalQuantities.length) ? globalQuantities[i] : 1;
-      total += price * qty;
+    if (_paymentMethodController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pilih metode pembayaran')));
+      return;
     }
-    return total;
-  }
 
-  double get finalPrice => (totalPrice - discount).clamp(0, double.infinity);
-
-  void _updateDiscount(String value) {
     setState(() {
-      discount = double.tryParse(value) ?? 0;
+      _payments.add({
+        'method': _paymentMethodController.text.toUpperCase(),
+        'amount':
+            double.tryParse(
+              _paymentAmountController.text.replaceAll(',', ''),
+            ) ??
+            0,
+        'note': _paymentNoteController.text, // Gunakan controller baru
+      });
+
+      _paymentAmountController.clear(); // Bersihkan controller nominal
+      _paymentNoteController.clear(); // Bersihkan controller catatan
+      _isAddingPayment = false;
     });
   }
 
-  void _updateUangCustomer(String value) {
+  void _removePayment(int index) {
     setState(() {
-      uangCustomer = double.tryParse(value) ?? 0;
-      kembalian = (uangCustomer - finalPrice).clamp(0, double.infinity);
+      _payments.removeAt(index);
     });
   }
 
-  void _onSelesai() {
-    if (globalCart.isEmpty) return;
-    final transaksi = {
-      'jenis': 'terjual',
-      'namaPelanggan': _namaPelangganController.text,
-      'produk': [
-        for (int i = 0; i < globalCart.length; i++)
-          {
-            'name': globalCart[i]['name'] ?? globalCart[i]['nama'],
-            'size': globalCart[i]['size'] ?? '250g',
-            'stock': globalCart[i]['stock'],
-            'price': globalCart[i]['price'],
-          },
-      ],
-      'total': totalPrice,
-      'diskon': discount,
-      'totalAkhir': finalPrice,
-      'jenisPembayaran': paymentType,
-      'uangCustomer': uangCustomer,
-      'kembalian': kembalian,
-      'tanggal': DateTime.now().toString().substring(0, 16),
-      'status': paymentStatus,
-    };
+  void _submitOrder() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      try {
+        // Gabungkan item berdasarkan size_id
+        final Map<int, int> mergedDetails = {};
+        for (var i = 0; i < globalCart.length; i++) {
+          final item = globalCart[i];
+          final sizeId = item['size_id'] as int;
+          final qty = globalQuantities[i];
 
-    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (paymentStatus == 'complete') {
-        Navigator.pushNamed(context, '/sale', arguments: transaksi);
-      } else {
-        Navigator.pushNamed(context, '/pending', arguments: transaksi);
-      }
-    });
-  }
+          if (mergedDetails.containsKey(sizeId)) {
+            mergedDetails[sizeId] = mergedDetails[sizeId]! + qty;
+          } else {
+            mergedDetails[sizeId] = qty;
+          }
+        }
 
-  void _removeItemAt(int index) {
-    if (index < 0 || index >= globalCart.length) return;
-    setState(() {
-      globalCart.removeAt(index);
-      if (index < globalQuantities.length) globalQuantities.removeAt(index);
-      _ensureQuantitiesMatch();
-    });
-  }
+        // Gabungkan pembayaran berdasarkan method
+        final Map<String, double> mergedPayments = {};
+        final Map<String, String> mergedNotes =
+            {}; // kalau ada catatan, ambil yang terakhir
 
-  void _updateQuantity(int index, int delta) {
-    if (index < 0 || index >= globalCart.length) return;
-    setState(() {
-      if (index >= globalQuantities.length) _ensureQuantitiesMatch();
-      final newQty = globalQuantities[index] + delta;
-      if (newQty < 1) return;
-      globalQuantities[index] = newQty;
-    });
-  }
+        for (var p in _payments) {
+          final method = (p['method'] as String).toUpperCase();
+          final amount = (p['amount'] as double?) ?? 0;
+          final note = (p['note'] as String?) ?? '';
 
-  @override
-  Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF00563B);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Keranjang', style: TextStyle(color: Colors.white)),
-        backgroundColor: primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 2,
-      ),
-      backgroundColor: const Color(0xFFFDFDFD),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          double horizontalPadding = constraints.maxWidth > 600 ? 64 : 16;
+          if (mergedPayments.containsKey(method)) {
+            mergedPayments[method] = mergedPayments[method]! + amount;
+            mergedNotes[method] = note; // replace dengan note terakhir
+          } else {
+            mergedPayments[method] = amount;
+            mergedNotes[method] = note;
+          }
+        }
 
-          return Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: horizontalPadding,
-              vertical: 16,
-            ),
-            child: globalCart.isEmpty
-                ? const Center(child: Text('Keranjang kosong'))
-                : SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionTitle('Nama Pelanggan'),
-                        _buildInputField(
-                          controller: _namaPelangganController,
-                          hintText: 'Masukkan nama pelanggan',
-                          icon: Icons.person_outline,
-                        ),
-                        const SizedBox(height: 24),
-
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: globalCart.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) =>
-                              _buildCartItem(index),
-                        ),
-                        const SizedBox(height: 24),
-
-                        _buildSectionTitle('Diskon / Potongan Harga'),
-                        _buildInputField(
-                          controller: _discountController,
-                          hintText: '0',
-                          icon: Icons.discount_outlined,
-                          onChanged: _updateDiscount,
-                          isNumber: true,
-                        ),
-                        const SizedBox(height: 24),
-
-                        _buildPriceSummary(),
-                        const SizedBox(height: 24),
-
-                        _buildSectionTitle('Jenis Pembayaran'),
-                        _buildRadioOptions(
-                          ['Tunai', 'Non Tunai'],
-                          paymentType,
-                          (val) {
-                            setState(() => paymentType = val);
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        _buildSectionTitle('Jumlah Uang dari Customer'),
-                        _buildInputField(
-                          controller: _uangCustomerController,
-                          hintText: '0',
-                          icon: Icons.payments_outlined,
-                          onChanged: _updateUangCustomer,
-                          isNumber: true,
-                        ),
-                        const SizedBox(height: 12),
-
-                        if (paymentType == 'Tunai')
-                          _buildSummaryRow(
-                            'Kembalian',
-                            'Rp${kembalian.toStringAsFixed(0)}',
-                            highlight: true,
-                          ),
-                        const SizedBox(height: 24),
-
-                        _buildSectionTitle('Status Pembayaran'),
-                        _buildRadioOptions(
-                          ['complete', 'pending'],
-                          paymentStatus,
-                          (val) {
-                            setState(() => paymentStatus = val);
-                          },
-                        ),
-                        const SizedBox(height: 24),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _onSelesai,
-                            icon: const Icon(Icons.check_circle_outline),
-                            label: const Text('Selesaikan Transaksi'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-    );
-  }
-
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String hintText,
-    required IconData icon,
-    bool isNumber = false,
-    void Function(String)? onChanged,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      decoration: InputDecoration(
-        hintText: hintText,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        prefixIcon: Icon(icon),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-      ),
-      onChanged: onChanged,
-    );
-  }
-
-  Widget _buildCartItem(int index) {
-    final item = globalCart[index];
-    return Card(
-      key: ValueKey(item['id']),
-      color: const Color(0xFFF1F8F5),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    item['name'] ?? '-',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Text('Ukuran: ', style: TextStyle(fontSize: 13)),
-                    DropdownButton<int>(
-                      value: item['size_id'],
-                      items: (item['sizes'] as List).map((s) {
-                        final size = s as Size; // import model Size
-                        return DropdownMenuItem<int>(
-                          value: size.id,
-                          child: Text(size.name),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val == null) return;
-                        setState(() {
-                          final newSize =
-                              (item['sizes'] as List).firstWhere(
-                                    (s) => (s as Size).id == val,
-                                  )
-                                  as Size;
-                          item['size_id'] = newSize.id;
-                          item['size_name'] = newSize.name;
-                          item['stock'] = newSize.stock;
-                          item['price'] = newSize.sellPrice;
-                        });
-                      },
+        final transaction = Transaction(
+          customerName: _customerNameController.text,
+          details: mergedDetails.entries
+              .map((e) => TransactionDetail(sizeId: e.key, qty: e.value))
+              .toList(),
+          payments: mergedPayments.isNotEmpty
+              ? mergedPayments.entries
+                    .map(
+                      (e) => PaymentMethod(
+                        method: e.key,
+                        amount: e.value,
+                        note: mergedNotes[e.key] ?? '',
+                      ),
+                    )
+                    .toList()
+              : null,
+          debt: _isDebtMode
+              ? DebtInfo(
+                  dueDate: _debtDueDateController.text,
+                  payments: [
+                    DebtPayment(
+                      amount: double.parse(_debtAmountController.text),
                     ),
                   ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Rp${item['price'] ?? 0}',
-                    style: const TextStyle(fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline),
-                  onPressed: () => _updateQuantity(index, -1),
-                ),
-                Text(
-                  '${index < globalQuantities.length ? globalQuantities[index] : 1}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  onPressed: () => _updateQuantity(index, 1),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  tooltip: 'Hapus produk',
-                  onPressed: () => _removeItemAt(index),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+                )
+              : null,
+        );
+
+        // Kirim transaksi ke backend
+        await SaleApi.createSale(transaction);
+
+        // Reset keranjang & pembayaran
+        globalCart.clear();
+        globalQuantities.clear();
+        _payments.clear();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pesanan berhasil disimpan!')),
+        );
+
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal menyimpan pesanan: $e')));
+      }
+    }
   }
 
-  Widget _buildPriceSummary() {
-    return Card(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            _buildSummaryRow('Total', 'Rp${totalPrice.toStringAsFixed(0)}'),
-            _buildSummaryRow('Potongan', '- Rp${discount.toStringAsFixed(0)}'),
-            const Divider(),
-            _buildSummaryRow(
-              'Total Akhir',
-              'Rp${finalPrice.toStringAsFixed(0)}',
-              highlight: true,
-            ),
-          ],
-        ),
-      ),
-    );
+  void _incrementQuantity(int index) {
+    if (globalQuantities[index] < 10) {
+      setState(() {
+        globalQuantities[index]++;
+      });
+    }
   }
 
-  Widget _buildSummaryRow(
-    String label,
-    String value, {
-    bool highlight = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: highlight ? 18 : 14,
-              fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
-            ),
+  void _decrementQuantity(int index) {
+    if (globalQuantities[index] > 1) {
+      setState(() {
+        globalQuantities[index]--;
+      });
+    }
+  }
+
+  void _changeSize(int index) {
+    final item = globalCart[index];
+    final sizes = item['sizes'] as List<Size>;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ubah Ukuran Produk'),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: sizes.map((size) {
+              return RadioListTile<int>(
+                title: Text(
+                  '${size.name} • Rp ${size.sellPrice} • Stok: ${size.stock}',
+                ),
+                value: size.id,
+                groupValue: item['size_id'],
+                onChanged: (value) {
+                  setState(() {
+                    globalCart[index]['size_id'] = size.id;
+                    globalCart[index]['size_name'] = size.name;
+                    globalCart[index]['price'] = size.sellPrice;
+                    globalCart[index]['stock'] = size.stock;
+                  });
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: highlight ? 18 : 14,
-              color: highlight ? Theme.of(context).colorScheme.primary : null,
-              fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
-            ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRadioOptions(
-    List<String> options,
-    String groupValue,
-    Function(String) onChanged,
-  ) {
-    return Wrap(
-      spacing: 16,
-      children: options
-          .map(
-            (option) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Radio<String>(
-                  value: option,
-                  groupValue: groupValue,
-                  onChanged: (val) => onChanged(val!),
-                  activeColor: const Color(0xFF00563B),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Color(0xFF00563B),
+        elevation: 0,
+        title: const Text(
+          'Checkout',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Nama Pelanggan
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                Text(option),
+                child: TextFormField(
+                  controller: _customerNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Pelanggan',
+                    labelStyle: TextStyle(fontSize: 16, color: Colors.black87),
+                    border: InputBorder.none,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Nama pelanggan wajib diisi';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
+              // Daftar Pesanan
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Daftar Pesanan:',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const Divider(thickness: 1, height: 20),
+                    ...globalCart.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final item = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['name'],
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${item['size_name']} • Rp ${item['price']}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  'Qty: ${globalQuantities[index]}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.remove_circle_outline,
+                                        size: 24,
+                                      ),
+                                      onPressed: () =>
+                                          _decrementQuantity(index),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.add_circle_outline,
+                                        size: 24,
+                                      ),
+                                      onPressed: () =>
+                                          _incrementQuantity(index),
+                                    ),
+                                  ],
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.change_circle_outlined,
+                                    size: 24,
+                                  ),
+                                  onPressed: () => _changeSize(index),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+
+              // Metode Pembayaran
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Metode Pembayaran',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const Divider(thickness: 1, height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: RadioListTile<bool>(
+                            title: const Text(
+                              'Bayar Tunai',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            value: false,
+                            groupValue: _isDebtMode,
+                            activeColor: Color(0xFF00563B),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _isDebtMode = value;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<bool>(
+                            title: const Text(
+                              'Hutang',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            value: true,
+                            groupValue: _isDebtMode,
+                            activeColor: Color(0xFF00563B),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _isDebtMode = value;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              if (!_isDebtMode) ...[
+                // Bagian Pembayaran Tunai
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Pembayaran:',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          FloatingActionButton(
+                            mini: true,
+                            backgroundColor: Color(0xFF00563B),
+                            onPressed: _addPayment,
+                            child: const Icon(Icons.add, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                      const Divider(thickness: 1, height: 20),
+
+                      if (_isAddingPayment)
+                        Column(
+                          children: [
+                            // Input Metode Pembayaran Baru
+                            DropdownButtonFormField<String>(
+                              value: _paymentMethodController.text,
+                              items: ['TRANSFER', 'CASH', 'QRIS', 'DEBIT']
+                                  .map(
+                                    (method) => DropdownMenuItem(
+                                      value: method,
+                                      child: Text(method),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  _paymentMethodController.text = value;
+                                }
+                              },
+                              decoration: InputDecoration(
+                                labelText: 'Metode Pembayaran',
+                                labelStyle: const TextStyle(fontSize: 16),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Metode pembayaran wajib dipilih';
+                                }
+                                return null;
+                              },
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Input Nominal Pembayaran
+                            TextFormField(
+                              controller: _paymentAmountController,
+                              decoration: InputDecoration(
+                                labelText: 'Nominal Pembayaran',
+                                labelStyle: const TextStyle(fontSize: 16),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Nominal wajib diisi';
+                                }
+                                return null;
+                              },
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Input Catatan Pembayaran
+                            TextFormField(
+                              controller: _paymentNoteController,
+                              decoration: InputDecoration(
+                                labelText: 'Catatan Pembayaran',
+                                labelStyle: const TextStyle(fontSize: 16),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: _savePayment,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Color(0xFF00563B),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text('Simpan Pembayaran'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      setState(() => _isAddingPayment = false),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey[300],
+                                    foregroundColor: Colors.black87,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text('Batalkan'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      else
+                        Column(
+                          children: [
+                            ..._payments.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final payment = entry.value;
+                              return Dismissible(
+                                key: Key('$index'),
+                                direction: DismissDirection.endToStart,
+                                onDismissed: (_) => _removePayment(index),
+                                background: Container(
+                                  color: Colors.red[100],
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 16),
+                                  child: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                                child: Card(
+                                  elevation: 2,
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.all(12),
+                                    title: Text(
+                                      payment['note'],
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Rp ${payment['amount'].toStringAsFixed(0)} (${payment['method']})',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Bagian Hutang
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Informasi Hutang:',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const Divider(thickness: 1, height: 20),
+                      TextFormField(
+                        controller: _debtDueDateController,
+                        decoration: InputDecoration(
+                          labelText: 'Tanggal Jatuh Tempo',
+                          labelStyle: const TextStyle(fontSize: 16),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Tanggal jatuh tempo wajib diisi';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _debtAmountController,
+                        decoration: InputDecoration(
+                          labelText: 'Jumlah Angsuran',
+                          labelStyle: const TextStyle(fontSize: 16),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Jumlah angsuran wajib diisi';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ],
-            ),
-          )
-          .toList(),
+
+              // Tombol Konfirmasi
+              Container(
+                margin: const EdgeInsets.only(top: 32),
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _submitOrder,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF00563B),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  child: const Text('Konfirmasi Pesanan'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

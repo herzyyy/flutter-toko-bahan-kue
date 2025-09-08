@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_toko_bahan_kue/models/sale_create_model.dart';
 import 'package:flutter_toko_bahan_kue/models/sale_model.dart';
 import 'package:flutter_toko_bahan_kue/models/sale_detail_model.dart';
 import 'package:http/http.dart' as http;
@@ -70,6 +71,64 @@ class SaleApi {
       } else {
         throw Exception(
           'Gagal memuat detail penjualan: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+
+  // static Future<SaleDetail> createSale(Transaction transaction) async {
+  //   final token = await AuthService.getToken();
+  //   final url = Uri.parse('$baseUrl/api/v1/sales');
+
+  //   try {
+  //     final response = await http.post(
+  //       url,
+  //       headers: {
+  //         'ngrok-skip-browser-warning': 'true',
+  //         'Authorization': token.toString(),
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: json.encode(transaction.toJson()),
+  //     );
+
+  //     if (response.statusCode == 204) {
+  //       final jsonData = json.decode(response.body);
+  //       return SaleDetail.fromJson(jsonData['data']);
+  //     } else {
+  //       throw Exception(
+  //         'Gagal membuat penjualan: ${response.statusCode} - ${response.body}',
+  //       );
+  //     }
+  //   } catch (e) {
+  //     throw Exception('Terjadi kesalahan: $e');
+  //   }
+  // }
+
+  static Future<void> createSale(Transaction transaction) async {
+    final token = await AuthService.getToken();
+    final url = Uri.parse('$baseUrl/api/v1/sales');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+          'Authorization': token.toString(),
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(transaction.toJson()),
+      );
+
+      if (response.statusCode == 201 ||
+          response.statusCode == 200 ||
+          response.statusCode == 204) {
+        // Tidak mengembalikan data, cukup selesai di sini
+        return;
+      } else {
+        throw Exception(
+          'Gagal membuat penjualan: ${response.statusCode} - ${response.body}',
         );
       }
     } catch (e) {
