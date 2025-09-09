@@ -25,7 +25,7 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Color(0xFF2E7D32), // Hijau tua
+        backgroundColor: Color(0xFF00563B), // Hijau tua
         elevation: 0,
         title: Text(
           'Detail Utang',
@@ -74,7 +74,7 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Color(0xFF2E7D32),
+                        Color(0xFF00563B),
                         Color(0xFF4CAF50),
                       ], // Hijau gelap ke hijau terang
                       begin: Alignment.topLeft,
@@ -113,7 +113,7 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                               style: TextStyle(fontSize: 12),
                             ),
                             backgroundColor: debt.status == 'PAID'
-                                ? Colors.green
+                                ? Color.fromARGB(255, 2, 99, 68)
                                 : Colors.orange,
                             labelStyle: TextStyle(
                               color: Colors.white,
