@@ -1,4 +1,3 @@
-// screens/debt_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_toko_bahan_kue/api/debt_api.dart';
 import 'package:flutter_toko_bahan_kue/models/debt_detail_model.dart';
@@ -6,7 +5,6 @@ import 'package:intl/intl.dart';
 
 class PendingDetailPage extends StatefulWidget {
   final int debtId;
-
   const PendingDetailPage({Key? key, required this.debtId}) : super(key: key);
 
   @override
@@ -27,7 +25,7 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.deepPurpleAccent,
+        backgroundColor: Color(0xFF2E7D32), // Hijau tua
         elevation: 0,
         title: Text(
           'Detail Utang',
@@ -75,7 +73,10 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.deepPurpleAccent, Colors.purple],
+                      colors: [
+                        Color(0xFF2E7D32),
+                        Color(0xFF4CAF50),
+                      ], // Hijau gelap ke hijau terang
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -96,12 +97,14 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Kode Referensi: ${debt.referenceCode}',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              'Kode Referensi: ${debt.referenceCode}',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                           Chip(
@@ -175,7 +178,6 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
 
 class SectionHeader extends StatelessWidget {
   final String title;
-
   const SectionHeader({Key? key, required this.title}) : super(key: key);
 
   @override
@@ -187,7 +189,7 @@ class SectionHeader extends StatelessWidget {
         style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Colors.deepPurpleAccent,
+          color: Color(0xFF2E7D32), // Hijau tua
         ),
       ),
     );
@@ -196,7 +198,6 @@ class SectionHeader extends StatelessWidget {
 
 class ItemCard extends StatelessWidget {
   final Item item;
-
   const ItemCard({Key? key, required this.item}) : super(key: key);
 
   @override
@@ -209,8 +210,11 @@ class ItemCard extends StatelessWidget {
         contentPadding: EdgeInsets.all(16),
         leading: CircleAvatar(
           radius: 30,
-          backgroundColor: Colors.deepPurple.shade100,
-          child: Icon(Icons.shopping_bag, color: Colors.deepPurple),
+          backgroundColor: Color(0xFFE8F5E9), // Hijau sangat terang
+          child: Icon(
+            Icons.shopping_bag,
+            color: Color(0xFF2E7D32),
+          ), // Hijau tua
         ),
         title: Text(
           item.productName,
@@ -229,7 +233,7 @@ class ItemCard extends StatelessWidget {
           'Rp${NumberFormat.currency(locale: 'id', symbol: '', decimalDigits: 0).format(item.sellPrice)}',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.deepPurple,
+            color: Color(0xFF2E7D32), // Hijau tua
           ),
         ),
       ),
@@ -239,7 +243,6 @@ class ItemCard extends StatelessWidget {
 
 class PaymentCard extends StatelessWidget {
   final DebtPayment payment;
-
   const PaymentCard({Key? key, required this.payment}) : super(key: key);
 
   @override
@@ -252,8 +255,8 @@ class PaymentCard extends StatelessWidget {
         contentPadding: EdgeInsets.all(16),
         leading: CircleAvatar(
           radius: 30,
-          backgroundColor: Colors.green.shade100,
-          child: Icon(Icons.payment, color: Colors.green),
+          backgroundColor: Color(0xFFE8F5E9), // Hijau sangat terang
+          child: Icon(Icons.payment, color: Color(0xFF2E7D32)), // Hijau tua
         ),
         title: Text(
           'Pembayaran #${payment.id}',
@@ -264,7 +267,10 @@ class PaymentCard extends StatelessWidget {
         ),
         trailing: Text(
           'Rp${NumberFormat.currency(locale: 'id', symbol: '', decimalDigits: 0).format(payment.amount)}',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2E7D32), // Hijau tua
+          ),
         ),
       ),
     );

@@ -30,6 +30,67 @@ class DebtApi {
     }
   }
 
+  // Fungsi baru dengan dukungan pencarian dan paginasi
+  static Future<Map<String, dynamic>> fetchDebtsWithPagination({
+    required String status,
+    String? search,
+    int page = 1,
+    int limit = 10, // Jumlah item per halaman
+  }) async {
+    final token = await AuthService.getToken();
+
+    // Membuat query parameters
+    final queryParams = {
+      'reference_type': 'SALE',
+      'status': status,
+      'page': page.toString(),
+      'size': limit.toString(),
+    };
+
+    // Tambahkan parameter pencarian jika tersedia
+    if (search != null && search.isNotEmpty) {
+      queryParams['search'] = search;
+    }
+
+    final url = Uri.parse(
+      "$baseUrl/api/v1/debt",
+    ).replace(queryParameters: queryParams);
+
+    final response = await http.get(
+      url,
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+        'Authorization': token.toString(),
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      // Ekstrak data utama
+      final List<dynamic> list = data['data'];
+      final debts = list.map((e) => Debt.fromJson(e)).toList();
+
+      // Ekstrak metadata paginasi
+      final paging = data['paging'];
+      final totalPages = paging['total_page'];
+      final currentPage = paging['page'];
+      final totalItems = paging['total_item'];
+
+      return {
+        'data': debts,
+        'pagination': {
+          'currentPage': currentPage,
+          'totalPages': totalPages,
+          'totalItems': totalItems,
+          'perPage': limit,
+        },
+      };
+    } else {
+      throw Exception("Failed to load debts: ${response.statusCode}");
+    }
+  }
+
   static Future<DebtDetail> getDebtDetail(int debtId) async {
     final token = await AuthService.getToken();
 
