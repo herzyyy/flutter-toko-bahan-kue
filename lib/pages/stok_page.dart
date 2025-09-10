@@ -12,7 +12,8 @@ class StokPage extends StatefulWidget {
   State<StokPage> createState() => _StokPageState();
 }
 
-class _StokPageState extends State<StokPage> {
+class _StokPageState extends State<StokPage>
+    with SingleTickerProviderStateMixin {
   late Future<List<Product>> productsFuture;
   late Future<List<Distributor>> distributorsFuture;
   Distributor? selectedDistributor;

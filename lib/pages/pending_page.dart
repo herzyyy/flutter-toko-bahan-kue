@@ -3,7 +3,6 @@ import 'package:flutter_toko_bahan_kue/api/debt_api.dart';
 import 'package:flutter_toko_bahan_kue/models/debt_model.dart';
 import 'package:flutter_toko_bahan_kue/pages/pending_detail_page.dart';
 import 'dart:async';
-
 import 'package:intl/intl.dart';
 
 class PendingPage extends StatefulWidget {
@@ -14,43 +13,166 @@ class PendingPage extends StatefulWidget {
 }
 
 class _PendingPageState extends State<PendingPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
-  late Future<List<Debt>> _pendingDebtsFuture;
-  late Future<List<Debt>> _paidDebtsFuture;
   String _searchQuery = '';
   Timer? _debounceTimer;
+
+  // Pagination state untuk pending & paid
+  List<Debt> _pendingDebts = [];
+  List<Debt> _paidDebts = [];
+  int _pendingPage = 1;
+  int _paidPage = 1;
+  bool _isPendingLoading = false;
+  bool _isPaidLoading = false;
+  bool _hasMorePending = true;
+  bool _hasMorePaid = true;
+
+  // Scroll controllers untuk mendeteksi scroll ke bawah
+  late ScrollController _pendingScrollController;
+  late ScrollController _paidScrollController;
+
+  @override
+  bool get wantKeepAlive => true; // biar tidak refresh
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _refreshData();
+
+    _pendingScrollController = ScrollController();
+    _paidScrollController = ScrollController();
+
+    _pendingScrollController.addListener(_pendingScrollListener);
+    _paidScrollController.addListener(_paidScrollListener);
+
+    _loadPendingDebts(reset: true);
+    _loadPaidDebts(reset: true);
   }
 
-  void _refreshData() {
-    _pendingDebtsFuture = DebtApi.fetchDebtsWithPagination(
-      status: 'PENDING',
-      search: _searchQuery,
-      page: 1,
-      limit: 10,
-    ).then((result) => result['data']);
+  void _pendingScrollListener() {
+    if (_pendingScrollController.position.atEdge) {
+      final isBottom =
+          _pendingScrollController.position.pixels ==
+          _pendingScrollController.position.maxScrollExtent;
+      if (isBottom && !_isPendingLoading && _hasMorePending) {
+        _loadPendingDebts();
+      }
+    } else {
+      // alternatif: trigger ketika dekat bottom (200 px tersisa)
+      if (_pendingScrollController.position.pixels >=
+              _pendingScrollController.position.maxScrollExtent - 200 &&
+          !_isPendingLoading &&
+          _hasMorePending) {
+        _loadPendingDebts();
+      }
+    }
+    // Untuk debugging, bisa aktifkan print ini:
+    // print("pending: ${_pendingScrollController.position.pixels} / ${_pendingScrollController.position.maxScrollExtent}");
+  }
 
-    _paidDebtsFuture = DebtApi.fetchDebtsWithPagination(
-      status: 'PAID',
-      search: _searchQuery,
-      page: 1,
-      limit: 10,
-    ).then((result) => result['data']);
+  void _paidScrollListener() {
+    if (_paidScrollController.position.atEdge) {
+      final isBottom =
+          _paidScrollController.position.pixels ==
+          _paidScrollController.position.maxScrollExtent;
+      if (isBottom && !_isPaidLoading && _hasMorePaid) {
+        _loadPaidDebts();
+      }
+    } else {
+      if (_paidScrollController.position.pixels >=
+              _paidScrollController.position.maxScrollExtent - 200 &&
+          !_isPaidLoading &&
+          _hasMorePaid) {
+        _loadPaidDebts();
+      }
+    }
+    // Untuk debugging, bisa aktifkan print ini:
+    // print("paid: ${_paidScrollController.position.pixels} / ${_paidScrollController.position.maxScrollExtent}");
+  }
 
-    setState(() {});
+  Future<void> _loadPendingDebts({bool reset = false}) async {
+    if (_isPendingLoading) return;
+
+    setState(() => _isPendingLoading = true);
+
+    try {
+      if (reset) {
+        _pendingPage = 1;
+        _pendingDebts.clear();
+        _hasMorePending = true;
+        // scroll ke atas kalau perlu
+        if (_pendingScrollController.hasClients) {
+          _pendingScrollController.jumpTo(0);
+        }
+      }
+
+      final result = await DebtApi.fetchDebtsWithPagination(
+        status: 'PENDING',
+        search: _searchQuery,
+        page: _pendingPage,
+        limit: 10,
+      );
+
+      final newData = result['data'] as List<dynamic>; // ambil list dari API
+      setState(() {
+        // Pastikan tipe cocok; jika result['data'] sudah List<Debt> ini tetap works
+        _pendingDebts.addAll(newData.cast<Debt>());
+        _hasMorePending = newData.length == 10;
+        if (_hasMorePending) _pendingPage++;
+        _isPendingLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isPendingLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal memuat data: $e')));
+    }
+  }
+
+  Future<void> _loadPaidDebts({bool reset = false}) async {
+    if (_isPaidLoading) return;
+
+    setState(() => _isPaidLoading = true);
+
+    try {
+      if (reset) {
+        _paidPage = 1;
+        _paidDebts.clear();
+        _hasMorePaid = true;
+        if (_paidScrollController.hasClients) {
+          _paidScrollController.jumpTo(0);
+        }
+      }
+
+      final result = await DebtApi.fetchDebtsWithPagination(
+        status: 'PAID',
+        search: _searchQuery,
+        page: _paidPage,
+        limit: 10,
+      );
+
+      final newData = result['data'] as List<dynamic>;
+      setState(() {
+        _paidDebts.addAll(newData.cast<Debt>());
+        _hasMorePaid = newData.length == 10;
+        if (_hasMorePaid) _paidPage++;
+        _isPaidLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isPaidLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal memuat data: $e')));
+    }
   }
 
   void _onSearchChanged(String value) {
     _searchQuery = value;
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 800), () {
-      _refreshData();
+      _loadPendingDebts(reset: true);
+      _loadPaidDebts(reset: true);
     });
   }
 
@@ -58,39 +180,49 @@ class _PendingPageState extends State<PendingPage>
   void dispose() {
     _tabController.dispose();
     _debounceTimer?.cancel();
+    _pendingScrollController.removeListener(_pendingScrollListener);
+    _paidScrollController.removeListener(_paidScrollListener);
+    _pendingScrollController.dispose();
+    _paidScrollController.dispose();
     super.dispose();
   }
 
-  // Widget untuk daftar utang
-  Widget _buildDebtList(Future<List<Debt>> future) {
-    return FutureBuilder<List<Debt>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              "Gagal memuat data: ${snapshot.error}",
-              style: const TextStyle(color: Colors.red),
-            ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text(
-              "Tidak ada data utang",
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
+  // Widget untuk daftar utang dengan pagination
+  Widget _buildDebtList({
+    required List<Debt> debts,
+    required bool isLoading,
+    required bool hasMore,
+    required ScrollController controller,
+  }) {
+    if (debts.isEmpty && isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (debts.isEmpty) {
+      return const Center(
+        child: Text(
+          "Tidak ada data utang",
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: controller, // penting: pasang controller
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: debts.length + (hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == debts.length) {
+          // Pastikan tidak ada loading spinner jika tidak ada data lagi
+          if (!hasMore) return const SizedBox.shrink();
+
+          // Tampilkan loading spinner hanya jika masih ada data
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
           );
         }
-        final debts = snapshot.data!;
-        return ListView.builder(
-          itemCount: debts.length,
-          itemBuilder: (context, index) {
-            final debt = debts[index];
-            return _buildDebtCard(debt);
-          },
-        );
+
+        final debt = debts[index];
+        return _buildDebtCard(debt);
       },
     );
   }
@@ -138,14 +270,12 @@ class _PendingPageState extends State<PendingPage>
                 ],
               ),
               const SizedBox(height: 8),
-
               // Nama pelanggan
               Text(
                 "Pelanggan: ${debt.related}",
                 style: const TextStyle(fontSize: 15),
               ),
-              const SizedBox(height: 4),
-
+              const SizedBox(height: 8),
               // Status
               Text(
                 "Status: ${debt.status}",
@@ -155,8 +285,7 @@ class _PendingPageState extends State<PendingPage>
                   color: debt.status == "PAID" ? Colors.green : Colors.orange,
                 ),
               ),
-              const SizedBox(height: 4),
-
+              const SizedBox(height: 8),
               // Jumlah utang
               Text(
                 "Jumlah: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(debt.totalAmount)}",
@@ -174,6 +303,8 @@ class _PendingPageState extends State<PendingPage>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // wajib kalau pakai keepAlive
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -191,7 +322,9 @@ class _PendingPageState extends State<PendingPage>
             onPressed: () async {
               final result = await showSearch<String>(
                 context: context,
-                delegate: SearchDelegateImpl(),
+                delegate: SearchDelegateImpl(
+                  _tabController.index == 0 ? "PENDING" : "PAID",
+                ),
               );
               if (result != null && result.isNotEmpty) {
                 _onSearchChanged(result);
@@ -232,8 +365,18 @@ class _PendingPageState extends State<PendingPage>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildDebtList(_pendingDebtsFuture),
-                  _buildDebtList(_paidDebtsFuture),
+                  _buildDebtList(
+                    debts: _pendingDebts,
+                    isLoading: _isPendingLoading,
+                    hasMore: _hasMorePending,
+                    controller: _pendingScrollController,
+                  ),
+                  _buildDebtList(
+                    debts: _paidDebts,
+                    isLoading: _isPaidLoading,
+                    hasMore: _hasMorePaid,
+                    controller: _paidScrollController,
+                  ),
                 ],
               ),
             ),
@@ -244,15 +387,16 @@ class _PendingPageState extends State<PendingPage>
   }
 }
 
-// Custom Search Delegate
+// Custom Search Delegate dengan status
 class SearchDelegateImpl extends SearchDelegate<String> {
-  SearchDelegateImpl()
+  final String status;
+  SearchDelegateImpl(this.status)
     : super(searchFieldLabel: "Cari nama pelanggan atau kode...");
 
   Future<List<Debt>> _fetchResults(String query) async {
     if (query.isEmpty) return [];
     return DebtApi.fetchDebtsWithPagination(
-      status: "SALE",
+      status: status,
       search: query,
       page: 1,
       limit: 10,
