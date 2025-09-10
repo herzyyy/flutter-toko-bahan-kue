@@ -7,11 +7,19 @@ class ProductApi {
   static const String baseUrl =
       'https://top-gibbon-engaged.ngrok-free.app'; // Ganti dengan URL API Anda
 
-  static Future<List<Product>> fetchProductList(String query) async {
+  static Future<List<Product>> fetchProductList(
+    String query, {
+    int page = 1,
+    int limit = 10,
+  }) async {
     final token = await AuthService.getToken();
 
+    final uri = Uri.parse(
+      '$baseUrl/api/v1/branch-inventory?search=$query&page=$page&limit=$limit',
+    );
+
     final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/branch-inventory?search=$query'),
+      uri,
       headers: {
         'ngrok-skip-browser-warning': 'true',
         'Authorization': token.toString(),
@@ -25,7 +33,7 @@ class ProductApi {
 
       return data.map((e) => Product.fromJson(e)).toList();
     } else {
-      throw Exception('Gagal memuat produk');
+      throw Exception('Gagal memuat produk (status: ${response.statusCode})');
     }
   }
 }

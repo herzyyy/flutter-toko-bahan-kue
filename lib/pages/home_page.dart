@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_toko_bahan_kue/api/auth_api.dart';
 import 'package:flutter_toko_bahan_kue/api/product_api.dart';
@@ -19,21 +20,32 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   late PageController _pageController;
-  Future<List<Product>> products = ProductApi.fetchProductList("");
-  List<Product> originalProducts = [];
+  late ScrollController _scrollController;
+
   List<Product> displayedProducts = [];
   Map<String, String?> selectedSizes = {};
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+
+  // Pagination state
+  int currentPage = 1;
+  bool isLoading = false;
+  bool hasMore = true;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _selectedIndex);
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+
+    _loadProducts(); // load awal
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -53,6 +65,40 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  // Pagination loader
+  Future<void> _loadProducts({String query = ""}) async {
+    if (isLoading || !hasMore) return;
+    setState(() => isLoading = true);
+
+    try {
+      final newProducts = await ProductApi.fetchProductList(
+        query,
+        page: currentPage,
+        limit: 10,
+      );
+
+      setState(() {
+        displayedProducts.addAll(newProducts);
+        currentPage++;
+        hasMore = newProducts.isNotEmpty;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal memuat produk: $e')));
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !isLoading) {
+      _loadProducts(query: _searchController.text);
+    }
   }
 
   void _addToCart(Product product) {
@@ -92,125 +138,124 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _filterProducts(String query) async {
-    if (query.isNotEmpty) {
-      try {
-        final filteredProducts = await ProductApi.fetchProductList(query);
-        setState(() {
-          displayedProducts = filteredProducts;
-        });
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal mencari produk: $e')));
-      }
-    } else {
-      final allProducts = await products;
+  void _filterProducts(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
       setState(() {
-        displayedProducts = allProducts;
+        displayedProducts.clear();
+        currentPage = 1;
+        hasMore = true;
       });
-    }
+      _loadProducts(query: query);
+    });
   }
 
   Widget _buildProductList(BuildContext context) {
     final isWideScreen = MediaQuery.of(context).size.width > 600;
 
-    return FutureBuilder<List<Product>>(
-      future: products,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('Tidak ada produk tersedia.'));
-        }
-
-        if (displayedProducts.isEmpty) {
-          originalProducts = snapshot.data!;
-          displayedProducts = List<Product>.from(originalProducts);
-        }
-
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildSearchBox(),
+          const SizedBox(height: 16),
+          Expanded(
+            child: displayedProducts.isEmpty && !isLoading
+                ? const Center(
+                    child: Text(
+                      'Produk tidak ditemukan',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _filterProducts,
-                  decoration: InputDecoration(
-                    hintText: 'Cari produk...',
-                    prefixIcon: const Icon(
-                      Icons.search,
-                      color: Color(0xFF00563B),
-                    ),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(
-                              Icons.clear,
-                              color: Color(0xFF00563B),
-                            ),
-                            onPressed: () {
-                              _searchController.clear();
-                              _filterProducts('');
-                            },
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
+                  )
+                : isWideScreen
+                ? GridView.builder(
+                    controller: _scrollController,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 3.5,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                    itemCount: displayedProducts.length + (isLoading ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index < displayedProducts.length) {
+                        return _buildProductCard(
+                          displayedProducts[index],
+                          index,
+                        );
+                      } else {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+                    },
+                  )
+                : ListView.separated(
+                    controller: _scrollController,
+                    itemCount: displayedProducts.length + (isLoading ? 1 : 0),
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      if (index < displayedProducts.length) {
+                        return _buildProductCard(
+                          displayedProducts[index],
+                          index,
+                        );
+                      } else {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+                    },
                   ),
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: isWideScreen
-                    ? GridView.builder(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 3.5,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                            ),
-                        itemCount: displayedProducts.length,
-                        itemBuilder: (context, index) {
-                          return _buildProductCard(
-                            displayedProducts[index],
-                            index,
-                          );
-                        },
-                      )
-                    : ListView.separated(
-                        itemCount: displayedProducts.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          return _buildProductCard(
-                            displayedProducts[index],
-                            index,
-                          );
-                        },
-                      ),
-              ),
-            ],
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBox() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _filterProducts,
+        decoration: InputDecoration(
+          hintText: 'Cari produk...',
+          prefixIcon: const Icon(Icons.search, color: Color(0xFF00563B)),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Color(0xFF00563B)),
+                  onPressed: () {
+                    _searchController.clear();
+                    _filterProducts('');
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
+        ),
+        style: const TextStyle(fontSize: 16),
+      ),
     );
   }
 
@@ -233,7 +278,6 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Nama produk
             Text(
               product.name,
               style: const TextStyle(
@@ -243,12 +287,9 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Informasi produk
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Dropdown ukuran
                 Expanded(
                   flex: 2,
                   child: DropdownButton<String>(
@@ -268,10 +309,7 @@ class _HomePageState extends State<HomePage> {
                     isExpanded: true,
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
-                // Stok
                 if (selectedSize != null)
                   Text(
                     'Stok: ${selectedSize.stock}',
@@ -281,10 +319,7 @@ class _HomePageState extends State<HomePage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
                 const Spacer(),
-
-                // Harga
                 Text(
                   selectedSize != null
                       ? 'Rp ${selectedSize.sellPrice}'
@@ -295,10 +330,7 @@ class _HomePageState extends State<HomePage> {
                     color: Color(0xFF00563B),
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
-                // Tombol tambah
                 ElevatedButton(
                   onPressed: () => _addToCart(product),
                   style: ElevatedButton.styleFrom(
