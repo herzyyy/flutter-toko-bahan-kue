@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_toko_bahan_kue/models/sale_model.dart';
 import 'package:flutter_toko_bahan_kue/pages/sale_detail_page.dart';
+import 'package:intl/intl.dart';
 import '../api/sale_api.dart';
 
 class SalePage extends StatefulWidget {
@@ -188,7 +189,8 @@ class _SalePageState extends State<SalePage>
                           ),
                         ),
                         Text(
-                          "${sale.createdAt.day}/${sale.createdAt.month}/${sale.createdAt.year}",
+                          DateFormat('dd/MM/yyyy').format(sale.createdAt),
+                          // "${sale.createdAt.day}/${sale.createdAt.month}/${sale.createdAt.year}",
                           style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF2E7D32),

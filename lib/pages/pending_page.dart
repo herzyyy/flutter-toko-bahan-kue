@@ -239,9 +239,11 @@ class _PendingPageState extends State<PendingPage>
       child: Card(
         elevation: 2,
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8), // disamakan dengan SalePage
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12), // disamakan dengan SalePage
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -256,14 +258,14 @@ class _PendingPageState extends State<PendingPage>
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 16, // sama dengan SalePage
                       ),
                     ),
                   ),
                   Text(
                     DateFormat('dd/MM/yyyy').format(debt.dueDate),
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 14, // sama dengan SalePage
                       color: Color(0xFF2E7D32),
                     ),
                   ),
@@ -273,25 +275,25 @@ class _PendingPageState extends State<PendingPage>
               // Nama pelanggan
               Text(
                 "Pelanggan: ${debt.related}",
-                style: const TextStyle(fontSize: 15),
+                style: const TextStyle(fontSize: 15), // sama dengan SalePage
               ),
-              const SizedBox(height: 8),
-              // Status
-              Text(
-                "Status: ${debt.status}",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: debt.status == "PAID" ? Colors.green : Colors.orange,
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Jumlah utang
+              // const SizedBox(height: 4),
+              // // Status
+              // Text(
+              //   "Status: ${debt.status}",
+              //   style: TextStyle(
+              //     fontSize: 14,
+              //     fontWeight: FontWeight.w500,
+              //     color: debt.status == "PAID" ? Colors.green : Colors.orange,
+              //   ),
+              // ),
+              const SizedBox(height: 4),
+              // Jumlah utang (tambahan, tetap ada di Pending)
               Text(
                 "Jumlah: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(debt.totalAmount)}",
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 15, // disamakan supaya serasi
                 ),
               ),
             ],
