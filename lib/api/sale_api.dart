@@ -30,6 +30,65 @@ class SaleApi {
     }
   }
 
+  static Future<Map<String, dynamic>> fetchSalesWithPagination(
+    String salesSearchQuery, {
+    String? search,
+    int page = 1,
+    int limit = 10, // Jumlah item per halaman
+  }) async {
+    final token = await AuthService.getToken();
+
+    // Membuat query parameters
+    final queryParams = {
+      'reference_type': 'SALE',
+      'page': page.toString(),
+      'size': limit.toString(),
+    };
+
+    // Tambahkan parameter pencarian jika tersedia
+    if (search != null && search.isNotEmpty) {
+      queryParams['search'] = search;
+    }
+
+    final url = Uri.parse(
+      "$baseUrl/api/v1/sales",
+    ).replace(queryParameters: queryParams);
+
+    final response = await http.get(
+      url,
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+        'Authorization': token.toString(),
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      // Ekstrak data utama
+      final List<dynamic> list = data['data'];
+      final sales = list.map((e) => Sale.fromJson(e)).toList();
+
+      // Ekstrak metadata paginasi
+      final paging = data['paging'];
+      final totalPages = paging['total_page'];
+      final currentPage = paging['page'];
+      final totalItems = paging['total_item'];
+
+      return {
+        'data': sales,
+        'pagination': {
+          'currentPage': currentPage,
+          'totalPages': totalPages,
+          'totalItems': totalItems,
+          'perPage': limit,
+        },
+      };
+    } else {
+      throw Exception("Failed to load sales: ${response.statusCode}");
+    }
+  }
+
   // Fetch Purchase
   static Future<List<Purchase>> fetchPurchase(String search) async {
     final token = await AuthService.getToken();
@@ -48,6 +107,65 @@ class SaleApi {
       return data.map((e) => Purchase.fromJson(e)).toList();
     } else {
       throw Exception('Gagal memuat riwayat pembelian');
+    }
+  }
+
+  static Future<Map<String, dynamic>> fetchPurchasesWithPagination(
+    String purchasesSearchQuery, {
+    String? search,
+    int page = 1,
+    int limit = 10, // Jumlah item per halaman
+  }) async {
+    final token = await AuthService.getToken();
+
+    // Membuat query parameters
+    final queryParams = {
+      'reference_type': 'PURCHASE',
+      'page': page.toString(),
+      'size': limit.toString(),
+    };
+
+    // Tambahkan parameter pencarian jika tersedia
+    if (search != null && search.isNotEmpty) {
+      queryParams['search'] = search;
+    }
+
+    final url = Uri.parse(
+      "$baseUrl/api/v1/purchases",
+    ).replace(queryParameters: queryParams);
+
+    final response = await http.get(
+      url,
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+        'Authorization': token.toString(),
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      // Ekstrak data utama
+      final List<dynamic> list = data['data'];
+      final purchases = list.map((e) => Purchase.fromJson(e)).toList();
+
+      // Ekstrak metadata paginasi
+      final paging = data['paging'];
+      final totalPages = paging['total_page'];
+      final currentPage = paging['page'];
+      final totalItems = paging['total_item'];
+
+      return {
+        'data': purchases,
+        'pagination': {
+          'currentPage': currentPage,
+          'totalPages': totalPages,
+          'totalItems': totalItems,
+          'perPage': limit,
+        },
+      };
+    } else {
+      throw Exception("Failed to load purchases: ${response.statusCode}");
     }
   }
 

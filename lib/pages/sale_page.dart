@@ -14,23 +14,87 @@ class SalePage extends StatefulWidget {
 class _SalePageState extends State<SalePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  late Future<List<Sale>> _salesFuture;
-  late Future<List<Purchase>> _purchaseFuture;
+
+  // Sales state
+  List<Sale> _sales = [];
+  int _salesPage = 1;
+  bool _isSalesLoading = false;
+  bool _salesHasMore = true;
   String _salesSearchQuery = '';
+
+  // Purchase state
+  List<Purchase> _purchases = [];
+  int _purchasesPage = 1;
+  bool _isPurchaseLoading = false;
+  bool _purchaseHasMore = true;
   String _purchasesSearchQuery = '';
+
   Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _refreshData();
+    _loadInitialData();
   }
 
-  void _refreshData() {
-    _salesFuture = SaleApi.fetchSales(_salesSearchQuery);
-    _purchaseFuture = SaleApi.fetchPurchase(_purchasesSearchQuery);
-    setState(() {});
+  void _loadInitialData() {
+    _salesPage = 1;
+    _purchasesPage = 1;
+    _sales.clear();
+    _purchases.clear();
+    _salesHasMore = true;
+    _purchaseHasMore = true;
+    _loadSales();
+    _loadPurchases();
+  }
+
+  Future<void> _loadSales() async {
+    if (_isSalesLoading || !_salesHasMore) return;
+    setState(() => _isSalesLoading = true);
+
+    try {
+      final result = await SaleApi.fetchSalesWithPagination(
+        _salesSearchQuery,
+        page: _salesPage,
+        limit: 10,
+      );
+
+      setState(() {
+        if (result.isEmpty) {
+          _salesHasMore = false;
+        } else {
+          _sales.addAll(result["data"]);
+          _salesPage++;
+        }
+      });
+    } finally {
+      setState(() => _isSalesLoading = false);
+    }
+  }
+
+  Future<void> _loadPurchases() async {
+    if (_isPurchaseLoading || !_purchaseHasMore) return;
+    setState(() => _isPurchaseLoading = true);
+
+    try {
+      final result = await SaleApi.fetchPurchasesWithPagination(
+        _purchasesSearchQuery,
+        page: _purchasesPage,
+        limit: 10,
+      );
+
+      setState(() {
+        if (result.isEmpty) {
+          _purchaseHasMore = false;
+        } else {
+          _purchases.addAll(result["data"]);
+          _purchasesPage++;
+        }
+      });
+    } finally {
+      setState(() => _isPurchaseLoading = false);
+    }
   }
 
   void _onSearchChanged(String value) {
@@ -42,7 +106,7 @@ class _SalePageState extends State<SalePage>
 
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 800), () {
-      _refreshData();
+      _loadInitialData();
     });
   }
 
@@ -54,165 +118,77 @@ class _SalePageState extends State<SalePage>
   }
 
   // ==========================
-  // WIDGET LIST PENJUALAN
+  // SALES LIST
   // ==========================
   Widget _buildSalesList() {
-    return FutureBuilder<List<Sale>>(
-      future: _salesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              "Gagal memuat data: ${snapshot.error}",
-              style: const TextStyle(color: Colors.red),
-            ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text(
-              "Belum ada riwayat penjualan",
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          );
+    if (_sales.isEmpty && _isSalesLoading) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (_sales.isEmpty) {
+      return const Center(
+        child: Text(
+          "Belum ada riwayat penjualan",
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollInfo) {
+        if (!_isSalesLoading &&
+            _salesHasMore &&
+            scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+          _loadSales();
         }
-
-        final sales = snapshot.data!;
-        return ListView.builder(
-          itemCount: sales.length,
-          itemBuilder: (context, index) {
-            final sale = sales[index];
-            return Card(
-              elevation: 2,
-              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SaleDetailScreen(saleCode: sale.code),
-                    ),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header kode + tanggal
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              "Kode: ${sale.code}",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            "${sale.createdAt.day}/${sale.createdAt.month}/${sale.createdAt.year}",
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF2E7D32),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      Text(
-                        "Pelanggan: ${sale.customerName}",
-                        style: const TextStyle(fontSize: 15),
-                      ),
-
-                      const SizedBox(height: 4),
-
-                      Text(
-                        "Status: ${sale.status}",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: sale.status == "Selesai"
-                              ? Colors.green
-                              : Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
+        return false;
       },
-    );
-  }
+      child: ListView.builder(
+        itemCount: _sales.length + (_salesHasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _sales.length) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
 
-  // ==========================
-  // WIDGET LIST PEMBELIAN
-  // ==========================
-  Widget _buildPurchaseList() {
-    return FutureBuilder<List<Purchase>>(
-      future: _purchaseFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              "Gagal memuat data: ${snapshot.error}",
-              style: const TextStyle(color: Colors.red),
+          final sale = _sales[index];
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text(
-              "Belum ada riwayat pembelian",
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          );
-        }
-
-        final purchases = snapshot.data!;
-        return ListView.builder(
-          itemCount: purchases.length,
-          itemBuilder: (context, index) {
-            final purchase = purchases[index];
-            return Card(
-              elevation: 2,
-              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SaleDetailScreen(saleCode: sale.code),
+                  ),
+                );
+              },
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header kode + tanggal
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          "Kode: ${purchase.code}",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        Flexible(
+                          child: Text(
+                            "Kode: ${sale.code}",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                         Text(
-                          "${purchase.createdAt.day}/${purchase.createdAt.month}/${purchase.createdAt.year}",
+                          "${sale.createdAt.day}/${sale.createdAt.month}/${sale.createdAt.year}",
                           style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF2E7D32),
@@ -221,27 +197,17 @@ class _SalePageState extends State<SalePage>
                       ],
                     ),
                     const SizedBox(height: 8),
-
                     Text(
-                      "Sales: ${purchase.salesName}",
+                      "Pelanggan: ${sale.customerName}",
                       style: const TextStyle(fontSize: 15),
                     ),
-
                     const SizedBox(height: 4),
-
                     Text(
-                      "Distributor: ${purchase.distributorName}",
-                      style: const TextStyle(fontSize: 15),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      "Status: ${purchase.status}",
+                      "Status: ${sale.status}",
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: purchase.status == "Selesai"
+                        color: sale.status == "Selesai"
                             ? Colors.green
                             : Colors.orange,
                       ),
@@ -249,10 +215,105 @@ class _SalePageState extends State<SalePage>
                   ],
                 ),
               ),
-            );
-          },
-        );
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ==========================
+  // PURCHASE LIST
+  // ==========================
+  Widget _buildPurchaseList() {
+    if (_purchases.isEmpty && _isPurchaseLoading) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (_purchases.isEmpty) {
+      return const Center(
+        child: Text(
+          "Belum ada riwayat pembelian",
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollInfo) {
+        if (!_isPurchaseLoading &&
+            _purchaseHasMore &&
+            scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+          _loadPurchases();
+        }
+        return false;
       },
+      child: ListView.builder(
+        itemCount: _purchases.length + (_purchaseHasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _purchases.length) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final purchase = _purchases[index];
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Kode: ${purchase.code}",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        "${purchase.createdAt.day}/${purchase.createdAt.month}/${purchase.createdAt.year}",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF2E7D32),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Sales: ${purchase.salesName}",
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Distributor: ${purchase.distributorName}",
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Status: ${purchase.status}",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: purchase.status == "Selesai"
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -332,16 +393,9 @@ class _SalePageState extends State<SalePage>
 // Custom Search Delegate
 // ===============================
 class SearchDelegateImpl extends SearchDelegate<String> {
-  final bool isSalesTab; // true = Penjualan, false = Pembelian
+  final bool isSalesTab;
   SearchDelegateImpl(this.isSalesTab)
     : super(searchFieldLabel: "Cari transaksi...");
-
-  Future<List<dynamic>> _fetchResults(String query) async {
-    if (query.isEmpty) return [];
-    return isSalesTab
-        ? await SaleApi.fetchSales(query)
-        : await SaleApi.fetchPurchase(query);
-  }
 
   @override
   List<Widget> buildActions(BuildContext context) {
@@ -367,82 +421,11 @@ class SearchDelegateImpl extends SearchDelegate<String> {
 
   @override
   Widget buildResults(BuildContext context) {
-    return FutureBuilder<List<dynamic>>(
-      future: _fetchResults(query),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              "Error: ${snapshot.error}",
-              style: const TextStyle(color: Colors.red),
-            ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text("Tidak ada hasil"));
-        }
-
-        final results = snapshot.data!;
-        return ListView.builder(
-          itemCount: results.length,
-          itemBuilder: (context, index) {
-            if (isSalesTab) {
-              final sale = results[index] as Sale;
-              return Card(
-                elevation: 2,
-                margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                child: ListTile(
-                  title: Text("Kode: ${sale.code}"),
-                  subtitle: Text("Pelanggan: ${sale.customerName}"),
-                  trailing: Text(
-                    sale.status,
-                    style: TextStyle(
-                      color: sale.status == "Selesai"
-                          ? Colors.green
-                          : Colors.orange,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SaleDetailScreen(saleCode: sale.code),
-                      ),
-                    );
-                  },
-                ),
-              );
-            } else {
-              final purchase = results[index] as Purchase;
-              return Card(
-                elevation: 2,
-                margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                child: ListTile(
-                  title: Text("Kode: ${purchase.code}"),
-                  subtitle: Text("Distributor: ${purchase.distributorName}"),
-                  trailing: Text(
-                    purchase.status,
-                    style: TextStyle(
-                      color: purchase.status == "Selesai"
-                          ? Colors.green
-                          : Colors.orange,
-                    ),
-                  ),
-                ),
-              );
-            }
-          },
-        );
-      },
-    );
+    return const Center(child: Text("Gunakan pencarian di halaman utama"));
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    if (query.isEmpty) {
-      return const Center(child: Text("Ketik untuk mencari..."));
-    }
-    return buildResults(context);
+    return const Center(child: Text("Ketik untuk mencari..."));
   }
 }
