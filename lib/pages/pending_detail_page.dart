@@ -9,6 +9,18 @@ import 'package:flutter_toko_bahan_kue/api/debt_api.dart';
 import 'package:flutter_toko_bahan_kue/models/debt_detail_model.dart';
 import 'package:intl/intl.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_toko_bahan_kue/api/debt_api.dart';
+import 'package:flutter_toko_bahan_kue/api/debt_payment_api.dart';
+import 'package:flutter_toko_bahan_kue/models/debt_detail_model.dart';
+import 'package:intl/intl.dart';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_toko_bahan_kue/api/debt_api.dart';
+import 'package:flutter_toko_bahan_kue/api/debt_payment_api.dart';
+import 'package:flutter_toko_bahan_kue/models/debt_detail_model.dart';
+import 'package:intl/intl.dart';
+
 class PendingDetailPage extends StatefulWidget {
   final int debtId;
   const PendingDetailPage({Key? key, required this.debtId}) : super(key: key);
@@ -20,9 +32,9 @@ class PendingDetailPage extends StatefulWidget {
 class _PendingDetailPageState extends State<PendingDetailPage> {
   late Future<DebtDetail> _debtFuture;
   final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _noteController =
-      TextEditingController(); // Tambahkan controller untuk note
+  final TextEditingController _noteController = TextEditingController();
   bool _isLoading = false;
+  bool _showPaymentForm = false; // Untuk kontrol visibilitas form pembayaran
 
   @override
   void initState() {
@@ -33,7 +45,7 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
   @override
   void dispose() {
     _amountController.dispose();
-    _noteController.dispose(); // Dispose controller note
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -48,9 +60,7 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
     try {
       setState(() => _isLoading = true);
 
-      final amount = int.parse(
-        _amountController.text.replaceAll('.', ''),
-      ); // Parse sebagai integer
+      final amount = int.parse(_amountController.text.replaceAll('.', ''));
       await DebtPaymentApi.createDebtPayment(
         widget.debtId,
         DebtPayment(
@@ -59,13 +69,13 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
           note: _noteController.text,
           paymentDate: DateTime.now(),
         ),
-      ); // Kirim note juga
+      );
 
-      // Refresh data setelah pembayaran
       setState(() {
         _debtFuture = DebtApi.getDebtDetail(widget.debtId);
         _amountController.clear();
-        _noteController.clear(); // Clear note setelah pembayaran
+        _noteController.clear();
+        _showPaymentForm = false; // Sembunyikan form setelah pembayaran
       });
 
       ScaffoldMessenger.of(
@@ -80,12 +90,33 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
     }
   }
 
+  Future<void> _deletePayment(int paymentId) async {
+    try {
+      setState(() => _isLoading = true);
+      await DebtPaymentApi.deleteDebtPayment(widget.debtId, paymentId);
+
+      setState(() {
+        _debtFuture = DebtApi.getDebtDetail(widget.debtId);
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Pembayaran berhasil dihapus!')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal menghapus pembayaran: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Color(0xFF00563B), // Hijau tua
+        backgroundColor: Color(0xFF00563B),
         elevation: 0,
         title: Text(
           'Detail Utang',
@@ -135,10 +166,7 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF00563B),
-                        Color(0xFF4CAF50),
-                      ], // Hijau gelap ke hijau terang
+                      colors: [Color(0xFF00563B), Color(0xFF4CAF50)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -258,7 +286,8 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                     ),
                     elevation: 4,
                     margin: EdgeInsets.only(bottom: 16),
-                    child: Padding(
+                    child: Container(
+                      width: double.infinity, // ✅ pastikan lebarnya penuh
                       padding: EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -294,112 +323,205 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                     itemCount: debt.payments.length,
                     itemBuilder: (context, index) {
                       final payment = debt.payments[index];
-                      return PaymentCard(payment: payment);
+                      return Dismissible(
+                        key: Key(payment.id.toString()),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: EdgeInsets.symmetric(horizontal: 20),
+                          child: Icon(Icons.delete, color: Colors.white),
+                        ),
+                        // ✅ konfirmasi dulu sebelum benar2 dismiss
+                        confirmDismiss: (_) async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: Text('Konfirmasi Penghapusan'),
+                              content: Text(
+                                'Apakah Anda yakin ingin menghapus pembayaran ini?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: Text('Batal'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: Text('Hapus'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            await _deletePayment(payment.id);
+                            return true; // baru hilang dari list
+                          }
+                          return false; // batal hapus → item tetap ada
+                        },
+                        child: PaymentCard(payment: payment),
+                      );
                     },
                   ),
 
-                // Payment Form Section
+                // Payment Form Section (Di atas Tombol)
+                // Payment Form Section (Di atas Tombol)
                 if (remainingAmount > 0)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SectionHeader(title: 'Bayar Sekarang'),
-                      Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 4,
-                        margin: EdgeInsets.only(bottom: 16),
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'Masukkan detail pembayaran',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2E7D32),
-                                ),
-                              ),
-                              SizedBox(height: 8),
+                      // Form Pembayaran
+                      if (_showPaymentForm)
+                        AnimatedContainer(
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          // ❌ hapus height: 330
+                          child: Card(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                            margin: EdgeInsets.only(bottom: 16),
+                            child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisSize: MainAxisSize
+                                    .min, // ✅ biar tinggi menyesuaikan isi
+                                children: [
+                                  Text(
+                                    'Isi detail pembayaran',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
 
-                              // Field Jumlah Pembayaran
-                              TextField(
-                                controller: _amountController,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  labelText: 'Jumlah Pembayaran',
-                                  hintText: 'Rp...',
-                                  prefixText: 'Rp',
-                                  suffixIcon: IconButton(
-                                    icon: Icon(Icons.clear),
-                                    onPressed: () => _amountController.clear(),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                onChanged: (value) {
-                                  // Format angka dengan titik sebagai pemisah ribuan
-                                  if (value.isNotEmpty) {
-                                    final cleanValue = value.replaceAll(
-                                      '.',
-                                      '',
-                                    );
-                                    final formattedValue =
-                                        NumberFormat.currency(
-                                          locale: 'id',
-                                          symbol: '',
-                                          decimalDigits: 0,
-                                        ).format(int.tryParse(cleanValue) ?? 0);
-                                    if (formattedValue != value) {
-                                      _amountController.value =
-                                          TextEditingValue(
+                                  // Field Jumlah Pembayaran
+                                  TextField(
+                                    controller: _amountController,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: 'Jumlah Pembayaran',
+                                      hintText: 'Rp...',
+                                      prefixText: 'Rp',
+                                      suffixIcon: IconButton(
+                                        icon: Icon(Icons.clear),
+                                        onPressed: () =>
+                                            _amountController.clear(),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onChanged: (value) {
+                                      if (value.isNotEmpty) {
+                                        final cleanValue = value.replaceAll(
+                                          '.',
+                                          '',
+                                        );
+                                        final formattedValue =
+                                            NumberFormat.currency(
+                                              locale: 'id',
+                                              symbol: '',
+                                              decimalDigits: 0,
+                                            ).format(
+                                              int.tryParse(cleanValue) ?? 0,
+                                            );
+                                        if (formattedValue != value) {
+                                          _amountController
+                                              .value = TextEditingValue(
                                             text: formattedValue,
                                             selection: TextSelection.collapsed(
                                               offset: formattedValue.length,
                                             ),
                                           );
-                                    }
-                                  }
-                                },
-                              ),
-                              SizedBox(height: 16),
-
-                              // Field Catatan Pembayaran
-                              TextField(
-                                controller: _noteController,
-                                maxLines: 3,
-                                decoration: InputDecoration(
-                                  labelText: 'Catatan Pembayaran',
-                                  hintText: 'Contoh: Pembayaran bulan Januari',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                        }
+                                      }
+                                    },
                                   ),
-                                ),
-                              ),
-                              SizedBox(height: 16),
+                                  SizedBox(height: 16),
 
-                              ElevatedButton(
-                                onPressed: _isLoading ? null : _makePayment,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF00563B),
-                                  minimumSize: Size(double.infinity, 50),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                  // Field Catatan
+                                  TextField(
+                                    controller: _noteController,
+                                    maxLines: 3,
+                                    decoration: InputDecoration(
+                                      labelText: 'Catatan Pembayaran',
+                                      hintText:
+                                          'Contoh: Pembayaran bulan Januari',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                child: _isLoading
-                                    ? CircularProgressIndicator(
-                                        color: Colors.white,
-                                      )
-                                    : Text('Bayar Sekarang'),
+                                  SizedBox(height: 16),
+
+                                  // Tombol Bayar Sekarang
+                                  ElevatedButton(
+                                    onPressed: _isLoading ? null : _makePayment,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Color(0xFF00563B),
+                                      minimumSize: Size(double.infinity, 50),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: _isLoading
+                                        ? CircularProgressIndicator(
+                                            color: Colors.white,
+                                          )
+                                        : Text('Bayar Sekarang'),
+                                  ),
+                                  SizedBox(height: 8),
+
+                                  // Tombol Batal
+                                  OutlinedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _showPaymentForm = false;
+                                        _amountController.clear();
+                                        _noteController.clear();
+                                      });
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      minimumSize: Size(double.infinity, 50),
+                                      side: BorderSide(color: Colors.red),
+                                    ),
+                                    child: Text(
+                                      'Batal',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
+
+                      // Tombol Bayar Sekarang (hanya tampil kalau form BELUM muncul)
+                      if (!_showPaymentForm)
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _showPaymentForm = true;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF00563B),
+                            minimumSize: Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            'Bayar Sekarang',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
                     ],
                   ),
               ],
@@ -410,6 +532,8 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
     );
   }
 }
+
+// ... kelas SectionHeader, ItemCard, dan PaymentCard tetap sama ...
 
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -494,7 +618,7 @@ class PaymentCard extends StatelessWidget {
           child: Icon(Icons.payment, color: Color(0xFF2E7D32)), // Hijau tua
         ),
         title: Text(
-          'Pembayaran #${payment.id}',
+          payment.note,
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(

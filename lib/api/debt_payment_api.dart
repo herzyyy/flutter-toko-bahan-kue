@@ -35,4 +35,31 @@ class DebtPaymentApi {
       throw Exception('Terjadi kesalahan: $e');
     }
   }
+
+  static Future<void> deleteDebtPayment(int debtID, int id) async {
+    final token = await AuthService.getToken();
+    final url = Uri.parse('$baseUrl/api/v1/debt/$debtID/payments/$id');
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+          'Authorization': token.toString(),
+        },
+      );
+
+      if (response.statusCode == 201 ||
+          response.statusCode == 200 ||
+          response.statusCode == 204) {
+        return;
+      } else {
+        throw Exception(
+          'Gagal membuat penjualan: ${response.statusCode} - ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
 }
