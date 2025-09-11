@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_toko_bahan_kue/api/debt_api.dart';
+import 'package:flutter_toko_bahan_kue/api/debt_payment_api.dart';
+import 'package:flutter_toko_bahan_kue/models/debt_detail_model.dart';
+import 'package:intl/intl.dart';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_toko_bahan_kue/api/debt_api.dart';
 import 'package:flutter_toko_bahan_kue/models/debt_detail_model.dart';
 import 'package:intl/intl.dart';
 
@@ -13,11 +19,65 @@ class PendingDetailPage extends StatefulWidget {
 
 class _PendingDetailPageState extends State<PendingDetailPage> {
   late Future<DebtDetail> _debtFuture;
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _noteController =
+      TextEditingController(); // Tambahkan controller untuk note
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _debtFuture = DebtApi.getDebtDetail(widget.debtId);
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _noteController.dispose(); // Dispose controller note
+    super.dispose();
+  }
+
+  Future<void> _makePayment() async {
+    if (_amountController.text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Masukkan jumlah pembayaran')));
+      return;
+    }
+
+    try {
+      setState(() => _isLoading = true);
+
+      final amount = int.parse(
+        _amountController.text.replaceAll('.', ''),
+      ); // Parse sebagai integer
+      await DebtPaymentApi.createDebtPayment(
+        widget.debtId,
+        DebtPayment(
+          id: 0,
+          amount: amount,
+          note: _noteController.text,
+          paymentDate: DateTime.now(),
+        ),
+      ); // Kirim note juga
+
+      // Refresh data setelah pembayaran
+      setState(() {
+        _debtFuture = DebtApi.getDebtDetail(widget.debtId);
+        _amountController.clear();
+        _noteController.clear(); // Clear note setelah pembayaran
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Pembayaran berhasil!')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal melakukan pembayaran: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -64,6 +124,8 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
           }
 
           final debt = snapshot.data!;
+          final remainingAmount = debt.totalAmount - debt.paidAmount;
+
           return SingleChildScrollView(
             padding: EdgeInsets.all(16),
             child: Column(
@@ -144,6 +206,37 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                   ),
                 ),
 
+                // Remaining Amount Info
+                if (remainingAmount > 0)
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    margin: EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Color(0xFFF1F8E9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Color(0xFFAED581), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Sisa Pembayaran:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                        Text(
+                          'Rp${NumberFormat.currency(locale: 'id', symbol: '', decimalDigits: 0).format(remainingAmount)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFD32F2F),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // Items Section
                 SectionHeader(title: 'Barang yang Dibeli'),
                 ListView.builder(
@@ -157,16 +250,158 @@ class _PendingDetailPageState extends State<PendingDetailPage> {
                 ),
 
                 // Payments Section
-                SectionHeader(title: 'Pembayaran'),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: debt.payments.length,
-                  itemBuilder: (context, index) {
-                    final payment = debt.payments[index];
-                    return PaymentCard(payment: payment);
-                  },
-                ),
+                SectionHeader(title: 'Riwayat Pembayaran'),
+                if (debt.payments.isEmpty)
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                    margin: EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 48,
+                            color: Color(0xFF757575),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Belum ada pembayaran',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF757575),
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Anda belum melakukan pembayaran untuk utang ini.',
+                            style: TextStyle(color: Color(0xFF9E9E9E)),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: debt.payments.length,
+                    itemBuilder: (context, index) {
+                      final payment = debt.payments[index];
+                      return PaymentCard(payment: payment);
+                    },
+                  ),
+
+                // Payment Form Section
+                if (remainingAmount > 0)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SectionHeader(title: 'Bayar Sekarang'),
+                      Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                        margin: EdgeInsets.only(bottom: 16),
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Masukkan detail pembayaran',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2E7D32),
+                                ),
+                              ),
+                              SizedBox(height: 8),
+
+                              // Field Jumlah Pembayaran
+                              TextField(
+                                controller: _amountController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: 'Jumlah Pembayaran',
+                                  hintText: 'Rp...',
+                                  prefixText: 'Rp',
+                                  suffixIcon: IconButton(
+                                    icon: Icon(Icons.clear),
+                                    onPressed: () => _amountController.clear(),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onChanged: (value) {
+                                  // Format angka dengan titik sebagai pemisah ribuan
+                                  if (value.isNotEmpty) {
+                                    final cleanValue = value.replaceAll(
+                                      '.',
+                                      '',
+                                    );
+                                    final formattedValue =
+                                        NumberFormat.currency(
+                                          locale: 'id',
+                                          symbol: '',
+                                          decimalDigits: 0,
+                                        ).format(int.tryParse(cleanValue) ?? 0);
+                                    if (formattedValue != value) {
+                                      _amountController.value =
+                                          TextEditingValue(
+                                            text: formattedValue,
+                                            selection: TextSelection.collapsed(
+                                              offset: formattedValue.length,
+                                            ),
+                                          );
+                                    }
+                                  }
+                                },
+                              ),
+                              SizedBox(height: 16),
+
+                              // Field Catatan Pembayaran
+                              TextField(
+                                controller: _noteController,
+                                maxLines: 3,
+                                decoration: InputDecoration(
+                                  labelText: 'Catatan Pembayaran',
+                                  hintText: 'Contoh: Pembayaran bulan Januari',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 16),
+
+                              ElevatedButton(
+                                onPressed: _isLoading ? null : _makePayment,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color(0xFF00563B),
+                                  minimumSize: Size(double.infinity, 50),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? CircularProgressIndicator(
+                                        color: Colors.white,
+                                      )
+                                    : Text('Bayar Sekarang'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           );

@@ -33,9 +33,11 @@ class DebtDetail {
       dueDate: DateTime.fromMillisecondsSinceEpoch(json['due_date']),
       status: json['status'],
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at']),
-      payments: (json['payments'] as List)
-          .map((p) => DebtPayment.fromJson(p))
-          .toList(),
+      payments: json['payments'] != null
+          ? (json['payments'] as List)
+                .map((p) => DebtPayment.fromJson(p))
+                .toList()
+          : [],
       items: (json['items'] as List).map((i) => Item.fromJson(i)).toList(),
     );
   }
@@ -59,11 +61,13 @@ class DebtDetail {
 class DebtPayment {
   final int id;
   final int amount;
+  final String note;
   final DateTime paymentDate;
 
   DebtPayment({
     required this.id,
     required this.amount,
+    required this.note,
     required this.paymentDate,
   });
 
@@ -71,6 +75,7 @@ class DebtPayment {
     return DebtPayment(
       id: json['id'],
       amount: json['amount'],
+      note: json['note'],
       paymentDate: DateTime.fromMillisecondsSinceEpoch(json['payment_date']),
     );
   }
@@ -79,6 +84,7 @@ class DebtPayment {
     return {
       "id": id,
       "amount": amount,
+      "note": note,
       "payment_date": paymentDate.millisecondsSinceEpoch,
     };
   }
