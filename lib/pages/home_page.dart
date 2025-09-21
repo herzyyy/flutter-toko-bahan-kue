@@ -453,7 +453,7 @@ class _HomePageState extends State<HomePage>
           );
         } else if (!snapshot.hasData) {
           return const Scaffold(
-            body: Center(child: Text('Tidak ada data user')),
+            body: Center(child: Text(' Tidak ada data user')),
           );
         }
 

@@ -6,7 +6,7 @@ class User {
   final String name;
   final String address;
   final int createdAt;
-  final int updatedAt;
+  // final int updatedAt;
   final Role role;
   final Branch branch;
 
@@ -15,7 +15,7 @@ class User {
     required this.name,
     required this.address,
     required this.createdAt,
-    required this.updatedAt,
+    // required this.updatedAt,
     required this.role,
     required this.branch,
   });
@@ -26,7 +26,7 @@ class User {
       name: json['name'],
       address: json['address'],
       createdAt: json['created_at'],
-      updatedAt: json['updated_at'],
+      // updatedAt: json['updated_at'],
       role: Role.fromJson(json['role']),
       branch: Branch.fromJson(json['branch']),
     );

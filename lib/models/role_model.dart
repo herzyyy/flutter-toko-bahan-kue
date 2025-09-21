@@ -2,13 +2,13 @@ class Role {
   final int id;
   final String name;
   final int createdAt;
-  final int updatedAt;
+  // final int updatedAt;
 
   Role({
     required this.id,
     required this.name,
     required this.createdAt,
-    required this.updatedAt,
+    // required this.updatedAt,
   });
 
   factory Role.fromJson(Map<String, dynamic> json) {
@@ -16,7 +16,7 @@ class Role {
       id: json['id'],
       name: json['name'],
       createdAt: json['created_at'],
-      updatedAt: json['updated_at'],
+      // updatedAt: json['updated_at'],
     );
   }
 }
