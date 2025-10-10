@@ -6,6 +6,7 @@ import 'package:flutter_toko_bahan_kue/helper/auth_service.dart';
 import 'package:flutter_toko_bahan_kue/models/product_model.dart';
 import 'package:flutter_toko_bahan_kue/models/user_model.dart';
 import 'stok_page.dart';
+import 'opname_page.dart';
 import 'sale_page.dart';
 import 'pending_page.dart';
 import '../data/cart_data.dart';
@@ -517,6 +518,7 @@ class _HomePageState extends State<HomePage>
             children: [
               _buildProductList(context),
               const StokPage(),
+              const OpnamePage(),
               const PendingPage(),
               const SalePage(),
             ],
@@ -536,6 +538,10 @@ class _HomePageState extends State<HomePage>
                 icon: Icon(Icons.inventory),
                 label: 'Stok Masuk',
               ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.fact_check), 
+                label: 'Opname'
+                ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.pending_actions),
                 label: 'Pending',
