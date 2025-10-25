@@ -103,8 +103,8 @@ class _HomePageState extends State<HomePage>
   }
 
   void _addToCart(Product product) {
-    final sizeId = selectedSizes[product.sku];
-    if (sizeId == null) {
+    final branchInventoryId = selectedSizes[product.sku];
+    if (branchInventoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pilih ukuran terlebih dahulu')),
       );
@@ -112,13 +112,15 @@ class _HomePageState extends State<HomePage>
     }
 
     final size = product.sizes.firstWhere(
-      (s) => s.id.toString() == sizeId,
+      (s) => s.branchInventoryId.toString() == branchInventoryId,
       orElse: () => product.sizes.first,
     );
 
     setState(() {
       final existingIndex = globalCart.indexWhere(
-        (item) => item['sku'] == product.sku && item['size_id'] == size.id,
+        (item) =>
+            item['sku'] == product.sku &&
+            item['branch_inventory_id'] == size.branchInventoryId,
       );
 
       if (existingIndex != -1) {
@@ -127,7 +129,7 @@ class _HomePageState extends State<HomePage>
         globalCart.add({
           'sku': product.sku,
           'name': product.name,
-          'size_id': size.id,
+          'branch_inventory_id': size.branchInventoryId,
           'size_name': size.name,
           'stock': size.stock,
           'price': size.sellPrice,
@@ -261,11 +263,11 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildProductCard(Product product, int index) {
-    final selectedSizeId = selectedSizes[product.sku];
-    final selectedSize = selectedSizeId == null
+    final selectedBranchInventoryId = selectedSizes[product.sku];
+    final selectedSize = selectedBranchInventoryId == null
         ? null
         : product.sizes.firstWhere(
-            (s) => s.id.toString() == selectedSizeId,
+            (s) => s.branchInventoryId.toString() == selectedBranchInventoryId,
             orElse: () => product.sizes.first,
           );
 
@@ -294,11 +296,11 @@ class _HomePageState extends State<HomePage>
                 Expanded(
                   flex: 2,
                   child: DropdownButton<String>(
-                    value: selectedSizeId,
+                    value: selectedBranchInventoryId,
                     hint: const Text('Pilih ukuran'),
                     items: product.sizes.map((size) {
                       return DropdownMenuItem<String>(
-                        value: size.id.toString(),
+                        value: size.branchInventoryId.toString(),
                         child: Text(size.name),
                       );
                     }).toList(),

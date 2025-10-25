@@ -1,9 +1,9 @@
 // models/transaksi_model.dart
 class TransactionDetail {
-  final int sizeId;
+  final int branchInventoryId;
   final int qty;
 
-  TransactionDetail({required this.sizeId, required this.qty});
+  TransactionDetail({required this.branchInventoryId, required this.qty});
 }
 
 class PaymentMethod {
@@ -41,7 +41,9 @@ class Transaction {
     return {
       'customer_name': customerName,
       'details': details
-          .map((d) => {'size_id': d.sizeId, 'qty': d.qty})
+          .map(
+            (d) => {'branch_inventory_id': d.branchInventoryId, 'qty': d.qty},
+          )
           .toList(),
       if (payments != null)
         'payments': payments!

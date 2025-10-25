@@ -81,11 +81,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
   void _submitOrder() async {
     if (_formKey.currentState?.validate() ?? false) {
       try {
-        // Gabungkan item berdasarkan size_id
+        // Gabungkan item berdasarkan branch_inventory_id
         final Map<int, int> mergedDetails = {};
         for (var i = 0; i < globalCart.length; i++) {
           final item = globalCart[i];
-          final sizeId = item['size_id'] as int;
+          final sizeId = item['branch_inventory_id'] as int;
           final qty = globalQuantities[i];
 
           if (mergedDetails.containsKey(sizeId)) {
@@ -117,7 +117,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
         final transaction = Transaction(
           customerName: _customerNameController.text,
           details: mergedDetails.entries
-              .map((e) => TransactionDetail(sizeId: e.key, qty: e.value))
+              .map(
+                (e) =>
+                    TransactionDetail(branchInventoryId: e.key, qty: e.value),
+              )
               .toList(),
           payments: mergedPayments.isNotEmpty
               ? mergedPayments.entries
@@ -195,11 +198,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 title: Text(
                   '${size.name} • Rp ${size.sellPrice} • Stok: ${size.stock}',
                 ),
-                value: size.id,
-                groupValue: item['size_id'],
+                value: size.branchInventoryId,
+                groupValue: item['branch_inventory_id'],
                 onChanged: (value) {
                   setState(() {
-                    globalCart[index]['size_id'] = size.id;
+                    globalCart[index]['branch_inventory_id'] =
+                        size.branchInventoryId;
                     globalCart[index]['size_name'] = size.name;
                     globalCart[index]['price'] = size.sellPrice;
                     globalCart[index]['stock'] = size.stock;

@@ -1,11 +1,11 @@
 class Size {
-  final int id;
+  final int branchInventoryId;
   final String name;
   final int sellPrice;
   final int stock;
 
   Size({
-    required this.id,
+    required this.branchInventoryId,
     required this.name,
     required this.sellPrice,
     required this.stock,
@@ -13,14 +13,19 @@ class Size {
 
   factory Size.fromJson(Map<String, dynamic> json) {
     return Size(
-      id: json['size_id'],
-      name: json['size'],
-      sellPrice: json['sell_price'],
-      stock: json['stock'],
+      branchInventoryId: json['branch_inventory_id'] ?? 0,
+      name: json['size']?.toString() ?? '',
+      sellPrice: json['sell_price'] ?? 0,
+      stock: json['stock'] ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name, 'sell_price': sellPrice, 'stock': stock};
+    return {
+      'branch_inventory_id': branchInventoryId,
+      'size': name,
+      'sell_price': sellPrice,
+      'stock': stock,
+    };
   }
 }
