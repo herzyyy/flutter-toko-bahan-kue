@@ -3,6 +3,7 @@ import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/cart_page.dart';
 import 'pages/stok_page.dart';
+import 'pages/opname_page.dart';
 import 'pages/sale_page.dart';
 import 'pages/pending_page.dart'; // Import PendingPage
 import 'pages/profil.dart'; // Import ProfilPage
@@ -67,6 +68,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/cart': (context) => const CheckoutPage(),
         '/stok': (context) => const StokPage(),
+        '/opname': (context) => const OpnamePage(),
         '/sale': (context) => const SalePage(),
         '/pending': (context) => const PendingPage(),
         '/profile': (context) => const ProfilPage(),
