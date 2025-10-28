@@ -6,8 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_toko_bahan_kue/helper/auth_service.dart';
 
 class SaleApi {
-  static const String baseUrl =
-      'https://top-gibbon-engaged.ngrok-free.app'; // ganti sesuai
+  static const String baseUrl = 'http://localhost:9090'; // ganti sesuai
 
   // Fetch Sales
   static Future<List<Sale>> fetchSales(String search) async {
@@ -251,6 +250,25 @@ class SaleApi {
       }
     } catch (e) {
       throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+
+  // Tambahkan createPurchase jika belum ada
+  static Future<Map<String, dynamic>> createPurchase(Map<String, dynamic> payload) async {
+    // sesuaikan baseUrl/path dengan API Anda
+    const baseUrl = 'https://your-api.example.com';
+    final url = Uri.parse('$baseUrl/purchases');
+
+    final resp = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    if (resp.statusCode >= 200 && resp.statusCode < 300) {
+      return jsonDecode(resp.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('Create purchase failed: ${resp.statusCode} ${resp.body}');
     }
   }
 }

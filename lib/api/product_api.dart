@@ -5,7 +5,7 @@ import '../models/product_model.dart';
 
 class ProductApi {
   static const String baseUrl =
-      'https://top-gibbon-engaged.ngrok-free.app'; // Ganti dengan URL API Anda
+      'http://localhost:9090'; // Ganti dengan URL API Anda
 
   static Future<List<Product>> fetchProductList(
     String query, {

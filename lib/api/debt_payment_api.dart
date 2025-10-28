@@ -4,8 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_toko_bahan_kue/helper/auth_service.dart';
 
 class DebtPaymentApi {
-  static const String baseUrl =
-      'https://top-gibbon-engaged.ngrok-free.app'; // ganti sesuai
+  static const String baseUrl = 'http://localhost:9090'; // ganti sesuai
 
   static Future<void> createDebtPayment(int id, DebtPayment debtPayment) async {
     final token = await AuthService.getToken();

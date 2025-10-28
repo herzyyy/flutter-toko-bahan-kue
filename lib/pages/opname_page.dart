@@ -40,6 +40,7 @@ class _OpnamePageState extends State<OpnamePage> {
         final newProduct = Map<String, dynamic>.from(product);
         newProduct['ukuran'] = ''; // ukuran kosong
         newProduct['stok'] = ''; // stok kosong
+        newProduct['note'] = ''; // <-- added note field
         selectedProducts.add(newProduct);
       });
     }
@@ -244,6 +245,34 @@ class _OpnamePageState extends State<OpnamePage> {
                                       ),
                                     ),
                                   ],
+                                ),
+
+                                const SizedBox(height: 12),
+                                // Catatan / Note input (baru)
+                                TextFormField(
+                                  initialValue:
+                                      produk['note']?.toString() ?? '',
+                                  maxLines: 3,
+                                  decoration: InputDecoration(
+                                    labelText: 'Catatan (opsional)',
+                                    alignLabelWithHint: true,
+                                    hintText:
+                                        'Tambahkan catatan untuk produk ini...',
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  onChanged: (val) {
+                                    setState(() {
+                                      produk['note'] = val;
+                                    });
+                                  },
                                 ),
                               ],
                             ),

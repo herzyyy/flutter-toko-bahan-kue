@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/debt_model.dart';
 
 class DebtApi {
-  static const String baseUrl = 'https://top-gibbon-engaged.ngrok-free.app';
+  static const String baseUrl = 'http://localhost:9090';
 
   static Future<List<Debt>> fetchDebts(String status) async {
     final token = await AuthService.getToken();

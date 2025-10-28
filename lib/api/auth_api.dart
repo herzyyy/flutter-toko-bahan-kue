@@ -11,7 +11,7 @@ class AuthApi {
     }
 
     final response = await http.get(
-      Uri.parse('https://top-gibbon-engaged.ngrok-free.app/gate/auth/me'),
+      Uri.parse('http://localhost:9090/gate/auth/me'),
       headers: {'ngrok-skip-browser-warning': 'true', 'Authorization': token},
     );
 
@@ -26,7 +26,7 @@ class AuthApi {
 
   static Future<String> login(String username, String password) async {
     final response = await http.post(
-      Uri.parse('https://top-gibbon-engaged.ngrok-free.app/gate/auth/login'),
+      Uri.parse('http://localhost:9090/gate/auth/login'),
       headers: {
         'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true',
@@ -46,7 +46,7 @@ class AuthApi {
     final token = await AuthService.getToken();
 
     final response = await http.post(
-      Uri.parse('https://top-gibbon-engaged.ngrok-free.app/gate/auth/logout'),
+      Uri.parse('http://localhost:9090/gate/auth/logout'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': token.toString(),

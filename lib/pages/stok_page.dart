@@ -4,6 +4,7 @@ import 'package:flutter_toko_bahan_kue/api/distributor_api.dart';
 import 'package:flutter_toko_bahan_kue/models/product_model.dart';
 import 'package:flutter_toko_bahan_kue/models/distributor_model.dart';
 import 'package:flutter_toko_bahan_kue/models/size_model.dart';
+import '../api/sale_api.dart'; // <-- add this import
 
 class StokPage extends StatefulWidget {
   const StokPage({super.key});
@@ -37,6 +38,7 @@ class _StokPageState extends State<StokPage>
         'product': product,
         'size': null,
         'price': 0,
+        'buy_price': 0, // <-- added buy_price
         'stock': 0,
         'quantity': 0,
       });
@@ -304,15 +306,22 @@ class _StokPageState extends State<StokPage>
                           product: product,
                           selectedSize: selectedSize,
                           quantity: item['quantity'],
+                          buyPrice: item['buy_price'], // <-- pass buy price
                           onSizeChanged: (size) {
                             setState(() {
                               item['size'] = size;
                               item['price'] = size?.sellPrice ?? 0;
                               item['stock'] = size?.stock ?? 0;
+                              // keep existing buy_price unless you want to override from size
                             });
                           },
                           onQuantityChanged: (value) =>
                               updateQuantity(index, value),
+                          onBuyPriceChanged: (value) {
+                            setState(() {
+                              item['buy_price'] = int.tryParse(value) ?? 0;
+                            });
+                          },
                           onDelete: () => removeProduct(index),
                         );
                       }),
@@ -321,15 +330,42 @@ class _StokPageState extends State<StokPage>
                 const SizedBox(height: 30),
                 // Save button
                 ElevatedButton(
-                  onPressed: () {
-                    print('Processing inventory update...');
-                    print('Selected distributor: ${selectedDistributor?.name}');
-                    print('Selected products: $selectedProducts');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Stok berhasil diperbarui!'),
-                      ),
-                    );
+                  onPressed: () async {
+                    // Persiapkan payload pembelian berdasarkan selectedProducts
+                    final payload = {
+                      'distributor_id': selectedDistributor?.id,
+                      'items': selectedProducts.map((item) {
+                        final prod = item['product'];
+                        final size = item['size'];
+                        return {
+                          'product_id': prod.id,
+                          'size_id': size?.id,
+                          'quantity': item['quantity'] ?? 0,
+                          'buy_price': item['buy_price'] ?? 0,
+                        };
+                      }).toList(),
+                    };
+
+                    // Panggil API untuk membuat purchase (simpan riwayat pembelian)
+                    try {
+                      await SaleApi.createPurchase(payload);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Stok & pembelian berhasil disimpan')),
+                      );
+
+                      // Reset lokal jika perlu
+                      setState(() {
+                        selectedProducts.clear();
+                        selectedDistributor = null;
+                      });
+
+                      // Return true supaya SalePage mereload riwayat pembelian
+                      Navigator.pop(context, true);
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Gagal menyimpan pembelian: $e')),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00563B),
@@ -536,8 +572,10 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final Size? selectedSize;
   final int quantity;
+  final int buyPrice; // <-- added buyPrice
   final Function(Size?) onSizeChanged;
   final Function(String) onQuantityChanged;
+  final Function(String) onBuyPriceChanged; // <-- callback for buy price
   final VoidCallback onDelete;
 
   const ProductCard({
@@ -545,8 +583,10 @@ class ProductCard extends StatelessWidget {
     required this.product,
     required this.selectedSize,
     required this.quantity,
+    required this.buyPrice,
     required this.onSizeChanged,
     required this.onQuantityChanged,
+    required this.onBuyPriceChanged,
     required this.onDelete,
   });
 
@@ -625,6 +665,24 @@ class ProductCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
             ],
+            // Harga Beli input
+            TextFormField(
+              initialValue: buyPrice.toString(),
+              decoration: InputDecoration(
+                labelText: 'Harga Beli (Rp)',
+                labelStyle: const TextStyle(color: Color(0xFF00563B)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+              keyboardType: TextInputType.number,
+              onChanged: onBuyPriceChanged,
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(

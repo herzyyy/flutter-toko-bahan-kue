@@ -4,8 +4,7 @@ import 'dart:convert';
 import '../models/distributor_model.dart';
 
 class DistributorApi {
-  static const String baseUrl =
-      'https://top-gibbon-engaged.ngrok-free.app'; // ganti sesuai API
+  static const String baseUrl = 'http://localhost:9090'; // ganti sesuai API
 
   static Future<List<Distributor>> fetchDistributorList() async {
     final token = await AuthService.getToken();

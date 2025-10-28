@@ -36,6 +36,9 @@ class _SalePageState extends State<SalePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {}); // perbarui UI agar hintText search berubah
+    });
     _loadInitialData();
   }
 
@@ -61,11 +64,15 @@ class _SalePageState extends State<SalePage>
         limit: 10,
       );
 
+      final List<dynamic> data = (result is Map && result['data'] is List)
+          ? result['data'] as List<dynamic>
+          : (result is List ? result as List<dynamic> : <dynamic>[]);
+
       setState(() {
-        if (result.isEmpty) {
+        if (data.isEmpty) {
           _salesHasMore = false;
         } else {
-          _sales.addAll(result["data"]);
+          _sales.addAll(data.map((e) => e as Sale));
           _salesPage++;
         }
       });
@@ -85,11 +92,15 @@ class _SalePageState extends State<SalePage>
         limit: 10,
       );
 
+      final List<dynamic> data = (result is Map && result['data'] is List)
+          ? result['data'] as List<dynamic>
+          : (result is List ? result as List<dynamic> : <dynamic>[]);
+
       setState(() {
-        if (result.isEmpty) {
+        if (data.isEmpty) {
           _purchaseHasMore = false;
         } else {
-          _purchases.addAll(result["data"]);
+          _purchases.addAll(data.map((e) => e as Purchase));
           _purchasesPage++;
         }
       });
@@ -143,15 +154,8 @@ class _SalePageState extends State<SalePage>
         return false;
       },
       child: ListView.builder(
-        itemCount: _sales.length + (_salesHasMore ? 1 : 0),
+        itemCount: _sales.length,
         itemBuilder: (context, index) {
-          if (index == _sales.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-
           final sale = _sales[index];
           return Card(
             elevation: 2,
@@ -190,7 +194,6 @@ class _SalePageState extends State<SalePage>
                         ),
                         Text(
                           DateFormat('dd/MM/yyyy').format(sale.createdAt),
-                          // "${sale.createdAt.day}/${sale.createdAt.month}/${sale.createdAt.year}",
                           style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF2E7D32),
@@ -249,15 +252,8 @@ class _SalePageState extends State<SalePage>
         return false;
       },
       child: ListView.builder(
-        itemCount: _purchases.length + (_purchaseHasMore ? 1 : 0),
+        itemCount: _purchases.length,
         itemBuilder: (context, index) {
-          if (index == _purchases.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-
           final purchase = _purchases[index];
           return Card(
             elevation: 2,
@@ -281,7 +277,7 @@ class _SalePageState extends State<SalePage>
                         ),
                       ),
                       Text(
-                        "${purchase.createdAt.day}/${purchase.createdAt.month}/${purchase.createdAt.year}",
+                        DateFormat('dd/MM/yyyy').format(purchase.createdAt),
                         style: const TextStyle(
                           fontSize: 14,
                           color: Color(0xFF2E7D32),
@@ -335,24 +331,13 @@ class _SalePageState extends State<SalePage>
         ),
         centerTitle: true,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Color(0xFF2E7D32)),
-            onPressed: () async {
-              final result = await showSearch<String>(
-                context: context,
-                delegate: SearchDelegateImpl(_tabController.index == 0),
-              );
-              if (result != null && result.isNotEmpty) {
-                _onSearchChanged(result);
-              }
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
+            // ===========================
+            // TABBAR
+            // ===========================
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F8E9),
@@ -378,10 +363,65 @@ class _SalePageState extends State<SalePage>
                 ],
               ),
             ),
+
+            // ===========================
+            // SEARCH BAR PER TAB
+            // ===========================
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      onChanged: (value) => _onSearchChanged(value),
+                      decoration: InputDecoration(
+                        hintText: _tabController.index == 0
+                            ? "Cari penjualan..."
+                            : "Cari pembelian...",
+                        prefixIcon:
+                            const Icon(Icons.search, color: Colors.green),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F7F7),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 0),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if ((_tabController.index == 0 &&
+                          _salesSearchQuery.isNotEmpty) ||
+                      (_tabController.index == 1 &&
+                          _purchasesSearchQuery.isNotEmpty))
+                    IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.green),
+                      onPressed: () {
+                        setState(() {
+                          if (_tabController.index == 0) {
+                            _salesSearchQuery = '';
+                          } else {
+                            _purchasesSearchQuery = '';
+                          }
+                          _loadInitialData();
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ),
+
+            // ===========================
+            // TAB CONTENT
+            // ===========================
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [_buildSalesList(), _buildPurchaseList()],
+                children: [
+                  _buildSalesList(),
+                  _buildPurchaseList(),
+                ],
               ),
             ),
           ],
@@ -390,44 +430,4 @@ class _SalePageState extends State<SalePage>
     );
   }
 }
-
-// ===============================
-// Custom Search Delegate
-// ===============================
-class SearchDelegateImpl extends SearchDelegate<String> {
-  final bool isSalesTab;
-  SearchDelegateImpl(this.isSalesTab)
-    : super(searchFieldLabel: "Cari transaksi...");
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      if (query.isNotEmpty)
-        IconButton(
-          icon: const Icon(Icons.clear),
-          onPressed: () {
-            query = '';
-            showSuggestions(context);
-          },
-        ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () => close(context, ''),
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    return const Center(child: Text("Gunakan pencarian di halaman utama"));
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return const Center(child: Text("Ketik untuk mencari..."));
-  }
-}
+      
