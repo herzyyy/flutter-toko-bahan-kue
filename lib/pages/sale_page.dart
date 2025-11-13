@@ -31,12 +31,18 @@ class _SalePageState extends State<SalePage>
   String _purchasesSearchQuery = '';
 
   Timer? _debounceTimer;
+  late TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
+      // Update search controller text when tab changes
+      _searchController.text = _tabController.index == 0
+          ? _salesSearchQuery
+          : _purchasesSearchQuery;
       setState(() {}); // perbarui UI agar hintText search berubah
     });
     _loadInitialData();
@@ -60,6 +66,7 @@ class _SalePageState extends State<SalePage>
     try {
       final result = await SaleApi.fetchSalesWithPagination(
         _salesSearchQuery,
+        search: _salesSearchQuery.isNotEmpty ? _salesSearchQuery : null,
         page: _salesPage,
         limit: 10,
       );
@@ -72,7 +79,14 @@ class _SalePageState extends State<SalePage>
         if (data.isEmpty) {
           _salesHasMore = false;
         } else {
-          _sales.addAll(data.map((e) => e as Sale));
+          final newSales = data.map((e) => e as Sale).toList();
+          _sales.addAll(newSales);
+
+          // Urutkan seluruh list berdasarkan relevansi jika ada query pencarian
+          if (_salesSearchQuery.isNotEmpty) {
+            _sales = _sortSalesByRelevance(_sales, _salesSearchQuery);
+          }
+
           _salesPage++;
         }
       });
@@ -88,6 +102,7 @@ class _SalePageState extends State<SalePage>
     try {
       final result = await SaleApi.fetchPurchasesWithPagination(
         _purchasesSearchQuery,
+        search: _purchasesSearchQuery.isNotEmpty ? _purchasesSearchQuery : null,
         page: _purchasesPage,
         limit: 10,
       );
@@ -100,7 +115,17 @@ class _SalePageState extends State<SalePage>
         if (data.isEmpty) {
           _purchaseHasMore = false;
         } else {
-          _purchases.addAll(data.map((e) => e as Purchase));
+          final newPurchases = data.map((e) => e as Purchase).toList();
+          _purchases.addAll(newPurchases);
+
+          // Urutkan seluruh list berdasarkan relevansi jika ada query pencarian
+          if (_purchasesSearchQuery.isNotEmpty) {
+            _purchases = _sortPurchasesByRelevance(
+              _purchases,
+              _purchasesSearchQuery,
+            );
+          }
+
           _purchasesPage++;
         }
       });
@@ -125,8 +150,115 @@ class _SalePageState extends State<SalePage>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  // ==========================
+  // SORTING BY RELEVANCE
+  // ==========================
+
+  /// Menghitung skor relevansi untuk Sale berdasarkan query pencarian
+  int _calculateSaleRelevance(Sale sale, String query) {
+    if (query.isEmpty) return 0;
+
+    final lowerQuery = query.toLowerCase();
+    final lowerCode = sale.code.toLowerCase();
+    final lowerCustomerName = sale.customerName.toLowerCase();
+
+    // Skor 3: Kode dimulai dengan query (paling relevan)
+    if (lowerCode.startsWith(lowerQuery)) {
+      return 3;
+    }
+
+    // Skor 2: Nama pelanggan dimulai dengan query
+    if (lowerCustomerName.startsWith(lowerQuery)) {
+      return 2;
+    }
+
+    // Skor 1: Kode atau nama pelanggan mengandung query
+    if (lowerCode.contains(lowerQuery) ||
+        lowerCustomerName.contains(lowerQuery)) {
+      return 1;
+    }
+
+    return 0;
+  }
+
+  /// Menghitung skor relevansi untuk Purchase berdasarkan query pencarian
+  int _calculatePurchaseRelevance(Purchase purchase, String query) {
+    if (query.isEmpty) return 0;
+
+    final lowerQuery = query.toLowerCase();
+    final lowerCode = purchase.code.toLowerCase();
+    final lowerSalesName = purchase.salesName.toLowerCase();
+    final lowerDistributorName = purchase.distributorName.toLowerCase();
+
+    // Skor 3: Kode dimulai dengan query (paling relevan)
+    if (lowerCode.startsWith(lowerQuery)) {
+      return 3;
+    }
+
+    // Skor 2: Nama sales atau distributor dimulai dengan query
+    if (lowerSalesName.startsWith(lowerQuery) ||
+        lowerDistributorName.startsWith(lowerQuery)) {
+      return 2;
+    }
+
+    // Skor 1: Kode, nama sales, atau distributor mengandung query
+    if (lowerCode.contains(lowerQuery) ||
+        lowerSalesName.contains(lowerQuery) ||
+        lowerDistributorName.contains(lowerQuery)) {
+      return 1;
+    }
+
+    return 0;
+  }
+
+  /// Mengurutkan list Sale berdasarkan relevansi dengan query
+  List<Sale> _sortSalesByRelevance(List<Sale> sales, String query) {
+    if (query.isEmpty) return sales;
+
+    final sorted = List<Sale>.from(sales);
+    sorted.sort((a, b) {
+      final scoreA = _calculateSaleRelevance(a, query);
+      final scoreB = _calculateSaleRelevance(b, query);
+
+      // Urutkan berdasarkan skor relevansi (tertinggi di atas)
+      if (scoreA != scoreB) {
+        return scoreB.compareTo(scoreA);
+      }
+
+      // Jika skor sama, urutkan berdasarkan tanggal terbaru
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+    return sorted;
+  }
+
+  /// Mengurutkan list Purchase berdasarkan relevansi dengan query
+  List<Purchase> _sortPurchasesByRelevance(
+    List<Purchase> purchases,
+    String query,
+  ) {
+    if (query.isEmpty) return purchases;
+
+    final sorted = List<Purchase>.from(purchases);
+    sorted.sort((a, b) {
+      final scoreA = _calculatePurchaseRelevance(a, query);
+      final scoreB = _calculatePurchaseRelevance(b, query);
+
+      // Urutkan berdasarkan skor relevansi (tertinggi di atas)
+      if (scoreA != scoreB) {
+        return scoreB.compareTo(scoreA);
+      }
+
+      // Jika skor sama, urutkan berdasarkan tanggal terbaru
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+    return sorted;
   }
 
   // ==========================
@@ -373,17 +505,19 @@ class _SalePageState extends State<SalePage>
                 children: [
                   Expanded(
                     child: TextField(
+                      controller: _searchController,
                       onChanged: (value) => _onSearchChanged(value),
                       decoration: InputDecoration(
                         hintText: _tabController.index == 0
                             ? "Cari penjualan..."
                             : "Cari pembelian...",
-                        prefixIcon:
-                            const Icon(Icons.search, color: Colors.green),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.green,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF7F7F7),
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 0),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -404,6 +538,7 @@ class _SalePageState extends State<SalePage>
                           } else {
                             _purchasesSearchQuery = '';
                           }
+                          _searchController.clear();
                           _loadInitialData();
                         });
                       },
@@ -418,10 +553,7 @@ class _SalePageState extends State<SalePage>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [
-                  _buildSalesList(),
-                  _buildPurchaseList(),
-                ],
+                children: [_buildSalesList(), _buildPurchaseList()],
               ),
             ),
           ],
@@ -430,4 +562,3 @@ class _SalePageState extends State<SalePage>
     );
   }
 }
-      

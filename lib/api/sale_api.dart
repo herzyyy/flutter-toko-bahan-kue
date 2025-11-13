@@ -254,21 +254,29 @@ class SaleApi {
   }
 
   // Tambahkan createPurchase jika belum ada
-  static Future<Map<String, dynamic>> createPurchase(Map<String, dynamic> payload) async {
-    // sesuaikan baseUrl/path dengan API Anda
-    const baseUrl = 'https://your-api.example.com';
-    final url = Uri.parse('$baseUrl/purchases');
+  static Future<void> createPurchase(Map<String, dynamic> payload) async {
+    final token = await AuthService.getToken();
+    final url = Uri.parse('$baseUrl/api/v1/purchases');
 
-    final resp = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+          'Authorization': token.toString(),
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(payload),
+      );
 
-    if (resp.statusCode >= 200 && resp.statusCode < 300) {
-      return jsonDecode(resp.body) as Map<String, dynamic>;
-    } else {
-      throw Exception('Create purchase failed: ${resp.statusCode} ${resp.body}');
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          'Gagal membuat riwayat pembelian: '
+          '${response.statusCode} - ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat membuat pembelian: $e');
     }
   }
 }

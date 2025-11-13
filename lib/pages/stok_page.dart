@@ -330,43 +330,100 @@ class _StokPageState extends State<StokPage>
                 const SizedBox(height: 30),
                 // Save button
                 ElevatedButton(
-                  onPressed: () async {
-                    // Persiapkan payload pembelian berdasarkan selectedProducts
-                    final payload = {
-                      'distributor_id': selectedDistributor?.id,
-                      'items': selectedProducts.map((item) {
-                        final prod = item['product'];
-                        final size = item['size'];
-                        return {
-                          'product_id': prod.id,
-                          'size_id': size?.id,
-                          'quantity': item['quantity'] ?? 0,
-                          'buy_price': item['buy_price'] ?? 0,
-                        };
-                      }).toList(),
-                    };
+                  onPressed:
+                      selectedDistributor == null || selectedProducts.isEmpty
+                      ? null
+                      : () async {
+                          // Validasi data sebelum submit
+                          final errors = <String>[];
 
-                    // Panggil API untuk membuat purchase (simpan riwayat pembelian)
-                    try {
-                      await SaleApi.createPurchase(payload);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Stok & pembelian berhasil disimpan')),
-                      );
+                          if (selectedDistributor == null) {
+                            errors.add('Pilih distributor terlebih dahulu');
+                          }
 
-                      // Reset lokal jika perlu
-                      setState(() {
-                        selectedProducts.clear();
-                        selectedDistributor = null;
-                      });
+                          for (var i = 0; i < selectedProducts.length; i++) {
+                            final item = selectedProducts[i];
+                            final product = item['product'] as Product;
+                            final size = item['size'] as Size?;
+                            final quantity = item['quantity'] as int? ?? 0;
+                            final buyPrice = item['buy_price'] as int? ?? 0;
 
-                      // Return true supaya SalePage mereload riwayat pembelian
-                      Navigator.pop(context, true);
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Gagal menyimpan pembelian: $e')),
-                      );
-                    }
-                  },
+                            if (size == null) {
+                              errors.add(
+                                'Produk "${product.name}" belum memilih ukuran',
+                              );
+                            } else if (quantity <= 0) {
+                              errors.add(
+                                'Produk "${product.name}" jumlah harus lebih dari 0',
+                              );
+                            } else if (buyPrice <= 0) {
+                              errors.add(
+                                'Produk "${product.name}" harga beli harus lebih dari 0',
+                              );
+                            }
+                          }
+
+                          if (errors.isNotEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(errors.join('\n')),
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                            return;
+                          }
+
+                          // Persiapkan payload pembelian berdasarkan selectedProducts
+                          final payload = {
+                            'distributor_id': selectedDistributor!.id,
+                            'items': selectedProducts.map((item) {
+                              final size = item['size'] as Size;
+                              return {
+                                'branch_inventory_id': size.branchInventoryId,
+                                'quantity': item['quantity'] as int,
+                                'buy_price': item['buy_price'] as int,
+                              };
+                            }).toList(),
+                          };
+
+                          // Panggil API untuk membuat purchase (simpan riwayat pembelian)
+                          try {
+                            await SaleApi.createPurchase(payload);
+                            if (!mounted) return;
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Stok & pembelian berhasil disimpan',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+
+                            // Reset lokal jika perlu
+                            setState(() {
+                              selectedProducts.clear();
+                              selectedDistributor = null;
+                              productSearchController.clear();
+                              distributorSearchController.clear();
+                              productSearchResults.clear();
+                              distributorSearchResults.clear();
+                            });
+
+                            // Return true supaya SalePage mereload riwayat pembelian
+                            if (!mounted) return;
+                            Navigator.pop(context, true);
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Gagal menyimpan pembelian: $e'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00563B),
                     foregroundColor: Colors.white,
