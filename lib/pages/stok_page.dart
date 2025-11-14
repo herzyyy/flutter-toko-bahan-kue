@@ -22,6 +22,13 @@ class _StokPageState extends State<StokPage>
   final TextEditingController productSearchController = TextEditingController();
   final TextEditingController distributorSearchController =
       TextEditingController();
+  final TextEditingController salesNameController = TextEditingController();
+  final TextEditingController dueDateController = TextEditingController();
+  final TextEditingController debtFirstPaymentController =
+      TextEditingController();
+  String? salesName;
+  String? paymentType; // "lunas" atau "utang"
+  String? paymentMethod; // cash, qris, transfer
   List<Product> productSearchResults = [];
   List<Distributor> distributorSearchResults = [];
 
@@ -32,13 +39,23 @@ class _StokPageState extends State<StokPage>
     distributorsFuture = DistributorApi.fetchDistributorList();
   }
 
+  @override
+  void dispose() {
+    productSearchController.dispose();
+    distributorSearchController.dispose();
+    salesNameController.dispose();
+    dueDateController.dispose();
+    debtFirstPaymentController.dispose();
+    super.dispose();
+  }
+
   void addProduct(Product product) {
     setState(() {
       selectedProducts.add({
         'product': product,
         'size': null,
         'price': 0,
-        'buy_price': 0, // <-- added buy_price
+        'buy_price': 0,
         'stock': 0,
         'quantity': 0,
       });
@@ -104,6 +121,30 @@ class _StokPageState extends State<StokPage>
       distributorSearchResults = [];
       distributorSearchController.clear();
     });
+  }
+
+  int calculateTotalAmount() {
+    int total = 0;
+    for (var item in selectedProducts) {
+      final qty = (item['quantity'] as int?) ?? 0;
+      final buy = (item['buy_price'] as int?) ?? 0;
+      total += qty * buy;
+    }
+    return total;
+  }
+
+  Future<void> pickDueDate(BuildContext context) async {
+    DateTime initial = DateTime.now().add(const Duration(days: 30));
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (picked != null) {
+      dueDateController.text = picked.toIso8601String().split('T').first;
+      setState(() {});
+    }
   }
 
   @override
@@ -217,6 +258,175 @@ class _StokPageState extends State<StokPage>
                               },
                             ),
                           ),
+                        const SizedBox(height: 16),
+                        // Input Sales Name
+                        TextField(
+                          controller: salesNameController,
+                          decoration: InputDecoration(
+                            labelText: "Nama Sales",
+                            prefixIcon: const Icon(
+                              Icons.person,
+                              color: Color(0xFF00563B),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF00563B),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF00563B),
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              salesName = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          "Jenis Pembayaran",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Color(0xFF00563B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // PILIHAN BAYAR LUNAS ATAU UTANG
+                        DropdownButtonFormField<String>(
+                          value: paymentType,
+                          decoration: InputDecoration(
+                            labelText: "Pilih pembayaran",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: "lunas",
+                              child: Text("Bayar Semua"),
+                            ),
+                            DropdownMenuItem(
+                              value: "utang",
+                              child: Text("Utang"),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              paymentType = value;
+                              if (paymentType != "lunas") {
+                                paymentMethod = null; // reset method
+                              }
+                            });
+                          },
+                        ),
+                        // Kalau Bayar Semua, tampilkan metode pembayaran
+                        if (paymentType == "lunas") ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            "Metode Pembayaran",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Color(0xFF00563B),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: paymentMethod,
+                            decoration: InputDecoration(
+                              labelText: "Pilih metode",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: "cash",
+                                child: Text("Cash"),
+                              ),
+                              DropdownMenuItem(
+                                value: "qris",
+                                child: Text("QRIS"),
+                              ),
+                              DropdownMenuItem(
+                                value: "transfer",
+                                child: Text("Transfer Bank"),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                paymentMethod = value;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          // Show computed total amount for user info
+                          Builder(
+                            builder: (context) {
+                              final total = calculateTotalAmount();
+                              return Text(
+                                'Total pembayaran: Rp ${total.toString()}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF00563B),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                        // Kalau Utang, tampilkan due date + DP field
+                        if (paymentType == "utang") ...[
+                          const SizedBox(height: 12),
+                          GestureDetector(
+                            onTap: () => pickDueDate(context),
+                            child: AbsorbPointer(
+                              child: TextField(
+                                controller: dueDateController,
+                                decoration: InputDecoration(
+                                  labelText: "Due Date (tap untuk pilih)",
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  suffixIcon: const Icon(
+                                    Icons.calendar_today_outlined,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: debtFirstPaymentController,
+                            decoration: InputDecoration(
+                              labelText:
+                                  "Pembayaran awal (DP) - isi 0 jika tidak ada",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 8),
+                          Builder(
+                            builder: (context) {
+                              final total = calculateTotalAmount();
+                              return Text(
+                                'Total tagihan: Rp ${total.toString()}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF00563B),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -306,7 +516,7 @@ class _StokPageState extends State<StokPage>
                           product: product,
                           selectedSize: selectedSize,
                           quantity: item['quantity'],
-                          buyPrice: item['buy_price'], // <-- pass buy price
+                          buyPrice: item['buy_price'],
                           onSizeChanged: (size) {
                             setState(() {
                               item['size'] = size;
@@ -339,6 +549,24 @@ class _StokPageState extends State<StokPage>
 
                           if (selectedDistributor == null) {
                             errors.add('Pilih distributor terlebih dahulu');
+                          }
+                          if (salesNameController.text.trim().isEmpty) {
+                            errors.add("Nama sales harus diisi");
+                          }
+                          if (paymentType == null) {
+                            errors.add("Pilih jenis pembayaran");
+                          }
+
+                          if (paymentType == "lunas" && paymentMethod == null) {
+                            errors.add(
+                              "Pilih metode pembayaran untuk pembayaran lunas",
+                            );
+                          }
+
+                          // jika utang wajib due date (boleh diizinkan kosong, tapi validasi disini)
+                          if (paymentType == "utang" &&
+                              (dueDateController.text.trim().isEmpty)) {
+                            errors.add("Pilih due date untuk utang");
                           }
 
                           for (var i = 0; i < selectedProducts.length; i++) {
@@ -374,17 +602,46 @@ class _StokPageState extends State<StokPage>
                           }
 
                           // Persiapkan payload pembelian berdasarkan selectedProducts
+                          final int totalAmount = calculateTotalAmount();
+
                           final payload = {
+                            'sales_name': salesNameController.text.trim(),
                             'distributor_id': selectedDistributor!.id,
-                            'items': selectedProducts.map((item) {
+                            'details': selectedProducts.map((item) {
                               final size = item['size'] as Size;
                               return {
-                                'branch_inventory_id': size.branchInventoryId,
-                                'quantity': item['quantity'] as int,
+                                'branch_inventory_id': size
+                                    .branchInventoryId, // sesuai format request
+                                'qty': item['quantity'] as int,
                                 'buy_price': item['buy_price'] as int,
                               };
                             }).toList(),
                           };
+
+                          // jika utang -> add debt
+                          if (paymentType == 'utang') {
+                            final int dpAmount =
+                                int.tryParse(
+                                  debtFirstPaymentController.text.trim(),
+                                ) ??
+                                0;
+                            payload['debt'] = {
+                              'due_date': dueDateController.text.trim(),
+                              'debt_payments': [
+                                {'amount': dpAmount},
+                              ],
+                            };
+                          }
+
+                          // jika lunas -> add payments
+                          if (paymentType == 'lunas') {
+                            payload['payments'] = [
+                              {
+                                'payment_method': paymentMethod,
+                                'amount': totalAmount,
+                              },
+                            ];
+                          }
 
                           // Panggil API untuk membuat purchase (simpan riwayat pembelian)
                           try {
@@ -400,7 +657,7 @@ class _StokPageState extends State<StokPage>
                               ),
                             );
 
-                            // Reset lokal jika perlu
+                            // Reset form
                             setState(() {
                               selectedProducts.clear();
                               selectedDistributor = null;
@@ -408,11 +665,16 @@ class _StokPageState extends State<StokPage>
                               distributorSearchController.clear();
                               productSearchResults.clear();
                               distributorSearchResults.clear();
+                              salesNameController.clear();
+                              salesName = null;
+                              paymentType = null;
+                              paymentMethod = null;
+                              dueDateController.clear();
+                              debtFirstPaymentController.clear();
                             });
 
-                            // Return true supaya SalePage mereload riwayat pembelian
-                            if (!mounted) return;
-                            Navigator.pop(context, true);
+                            // TIDAK BOLEH pop karena ini page bukan hasil push!!!
+                            // Navigator.of(context).pop();
                           } catch (e) {
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
