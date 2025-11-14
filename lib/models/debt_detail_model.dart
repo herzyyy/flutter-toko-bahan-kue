@@ -74,8 +74,8 @@ class DebtPayment {
   factory DebtPayment.fromJson(Map<String, dynamic> json) {
     return DebtPayment(
       id: json['id'],
-      amount: json['amount'],
-      note: json['note'],
+      amount: json['amount'] ?? 0,
+      note: json['note'] ?? '',
       paymentDate: DateTime.fromMillisecondsSinceEpoch(json['payment_date']),
     );
   }

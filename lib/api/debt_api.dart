@@ -41,7 +41,7 @@ class DebtApi {
 
     // Membuat query parameters
     final queryParams = {
-      'reference_type': 'SALE',
+      // 'reference_type': 'SALE',
       'status': status,
       'page': page.toString(),
       'size': limit.toString(),
