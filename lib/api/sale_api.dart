@@ -195,34 +195,6 @@ class SaleApi {
     }
   }
 
-  // static Future<SaleDetail> createSale(Transaction transaction) async {
-  //   final token = await AuthService.getToken();
-  //   final url = Uri.parse('$baseUrl/api/v1/sales');
-
-  //   try {
-  //     final response = await http.post(
-  //       url,
-  //       headers: {
-  //         'ngrok-skip-browser-warning': 'true',
-  //         'Authorization': token.toString(),
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: json.encode(transaction.toJson()),
-  //     );
-
-  //     if (response.statusCode == 204) {
-  //       final jsonData = json.decode(response.body);
-  //       return SaleDetail.fromJson(jsonData['data']);
-  //     } else {
-  //       throw Exception(
-  //         'Gagal membuat penjualan: ${response.statusCode} - ${response.body}',
-  //       );
-  //     }
-  //   } catch (e) {
-  //     throw Exception('Terjadi kesalahan: $e');
-  //   }
-  // }
-
   static Future<void> createSale(Transaction transaction) async {
     final token = await AuthService.getToken();
     final url = Uri.parse('$baseUrl/api/v1/sales');

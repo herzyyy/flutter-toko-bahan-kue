@@ -519,7 +519,7 @@ class _HomePageState extends State<HomePage>
             onPageChanged: _onPageChanged,
             children: [
               _buildProductList(context),
-              const StokPage(),
+              const StockOpnamePage(),
               const OpnamePage(),
               const PendingPage(),
               const SalePage(),
@@ -541,9 +541,9 @@ class _HomePageState extends State<HomePage>
                 label: 'Stok Masuk',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.fact_check), 
-                label: 'Opname'
-                ),
+                icon: Icon(Icons.fact_check),
+                label: 'Opname',
+              ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.pending_actions),
                 label: 'Pending',

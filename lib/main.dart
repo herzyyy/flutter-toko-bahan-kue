@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/cart_page.dart';
-import 'pages/stok_page.dart';
 import 'pages/opname_page.dart';
 import 'pages/sale_page.dart';
 import 'pages/pending_page.dart'; // Import PendingPage
@@ -67,7 +66,7 @@ class MyApp extends StatelessWidget {
         '/': (context) => const LoginPage(),
         '/home': (context) => const HomePage(),
         '/cart': (context) => const CheckoutPage(),
-        '/stok': (context) => const StokPage(),
+        // '/stok': (context) => const StockOpnamePage(),
         '/opname': (context) => const OpnamePage(),
         '/sale': (context) => const SalePage(),
         '/pending': (context) => const PendingPage(),
